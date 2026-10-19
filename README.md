@@ -3,7 +3,7 @@
 An interactive **three.js** visualisation of the 5-DOF robotic arm built for my EPQ
 artefact: *Design, construction and evaluation of a 6 DOF robotic arm* (P304).
 
-**Live demo:** https://EthanAntoineLi.github.io/HAVK/
+**Live demo:** https://ethanantoineli.github.io/HAVK/
 
 ![The rendered arm](previews/EPQ-Arm-hero-ui.png)
 

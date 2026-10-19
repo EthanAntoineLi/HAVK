@@ -21,6 +21,7 @@ if [ -d .git ] && [ -n "$(git status --porcelain)" ]; then
 fi
 
 OWNER="$(gh api user -q .login)"
+OWNER_LC="$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')"
 REMOTE_URL="https://github.com/$OWNER/$REPO_NAME.git"
 
 if git remote get-url origin >/dev/null 2>&1; then
@@ -37,15 +38,15 @@ else
     --source=. --remote=origin --push
 fi
 REPO_URL="https://github.com/$OWNER/$REPO_NAME"
-PAGES_URL="https://$OWNER.github.io/$REPO_NAME/"
+PAGES_URL="https://$OWNER_LC.github.io/$REPO_NAME/"
 
 # Put the real Pages URL into the README (once).
 if grep -q "YOUR-GITHUB-USERNAME" README.md; then
   if sed --version >/dev/null 2>&1; then
-    sed -i -e "s|YOUR-GITHUB-USERNAME|$OWNER|g" \
+    sed -i -e "s|YOUR-GITHUB-USERNAME|$OWNER_LC|g" \
            -e "s|YOUR-REPO-NAME|$REPO_NAME|g" README.md
   else
-    sed -i '' -e "s|YOUR-GITHUB-USERNAME|$OWNER|g" \
+    sed -i '' -e "s|YOUR-GITHUB-USERNAME|$OWNER_LC|g" \
               -e "s|YOUR-REPO-NAME|$REPO_NAME|g" README.md
   fi
   git add README.md
