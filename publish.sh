@@ -35,9 +35,11 @@ PAGES_URL="https://$OWNER.github.io/$REPO_NAME/"
 # Put the real Pages URL into the README (once).
 if grep -q "YOUR-GITHUB-USERNAME" README.md; then
   if sed --version >/dev/null 2>&1; then
-    sed -i "s|YOUR-GITHUB-USERNAME|$OWNER|g" README.md
+    sed -i -e "s|YOUR-GITHUB-USERNAME|$OWNER|g" \
+           -e "s|$OWNER.github.io/epq-robotic-arm|$OWNER.github.io/$REPO_NAME|g" README.md
   else
-    sed -i '' "s|YOUR-GITHUB-USERNAME|$OWNER|g" README.md
+    sed -i '' -e "s|YOUR-GITHUB-USERNAME|$OWNER|g" \
+              -e "s|$OWNER.github.io/epq-robotic-arm|$OWNER.github.io/$REPO_NAME|g" README.md
   fi
   git add README.md
   git commit -m "Add live demo link"
