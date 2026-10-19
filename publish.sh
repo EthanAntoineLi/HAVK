@@ -20,17 +20,22 @@ if [ -d .git ] && [ -n "$(git status --porcelain)" ]; then
   git commit -m "Update site"
 fi
 
-if ! git remote get-url origin >/dev/null 2>&1; then
+OWNER="$(gh api user -q .login)"
+REMOTE_URL="https://github.com/$OWNER/$REPO_NAME.git"
+
+if git remote get-url origin >/dev/null 2>&1; then
+  echo "Pushing to existing origin"
+  git push -u origin main
+elif gh repo view "$OWNER/$REPO_NAME" >/dev/null 2>&1; then
+  echo "Repository $OWNER/$REPO_NAME already exists; using it"
+  git remote add origin "$REMOTE_URL"
+  git push -u origin main
+else
   echo "Creating public repository: $REPO_NAME"
   gh repo create "$REPO_NAME" --public \
     --description "Interactive 3D visualiser of a 5-DOF robotic arm (EPQ)" \
     --source=. --remote=origin --push
-else
-  echo "Pushing to existing origin"
-  git push -u origin main
 fi
-
-OWNER="$(gh api user -q .login)"
 REPO_URL="https://github.com/$OWNER/$REPO_NAME"
 PAGES_URL="https://$OWNER.github.io/$REPO_NAME/"
 
