@@ -226,6 +226,10 @@ function setPanelOpen(open, focus = false) {
   document.body.classList.toggle('panel-open', open);
   if (panelToggle) panelToggle.setAttribute('aria-expanded', String(open));
   if (panelEl) panelEl.setAttribute('aria-hidden', String(!open));
+  if (isMobileLayout()) {
+    camera.fov = open ? 31 : 36;
+    camera.updateProjectionMatrix();
+  }
   if (open && focus && panelClose) panelClose.focus({ preventScroll: true });
   if (!open && focus && panelToggle) panelToggle.focus({ preventScroll: true });
 }
