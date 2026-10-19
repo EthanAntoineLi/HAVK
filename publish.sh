@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-REPO_NAME="${1:-epq-robotic-arm}"
+REPO_NAME="${1:-HAVK}"
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "GitHub CLI (gh) is required. Install it with:  brew install gh"
@@ -36,10 +36,10 @@ PAGES_URL="https://$OWNER.github.io/$REPO_NAME/"
 if grep -q "YOUR-GITHUB-USERNAME" README.md; then
   if sed --version >/dev/null 2>&1; then
     sed -i -e "s|YOUR-GITHUB-USERNAME|$OWNER|g" \
-           -e "s|$OWNER.github.io/epq-robotic-arm|$OWNER.github.io/$REPO_NAME|g" README.md
+           -e "s|YOUR-REPO-NAME|$REPO_NAME|g" README.md
   else
     sed -i '' -e "s|YOUR-GITHUB-USERNAME|$OWNER|g" \
-              -e "s|$OWNER.github.io/epq-robotic-arm|$OWNER.github.io/$REPO_NAME|g" README.md
+              -e "s|YOUR-REPO-NAME|$REPO_NAME|g" README.md
   fi
   git add README.md
   git commit -m "Add live demo link"

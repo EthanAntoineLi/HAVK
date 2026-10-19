@@ -19,7 +19,7 @@ about a minute to build after it is enabled.
 If you want a different repository name, pass it as the first argument:
 
 ```bash
-bash publish.sh my-arm-demo
+bash publish.sh my-repo-name
 ```
 
 ## Manual route
