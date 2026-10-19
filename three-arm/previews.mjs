@@ -2,13 +2,15 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { pathToFileURL } from 'node:url';
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT = 9000 + Math.floor(Math.random() * 800);
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
-const OUT = '/Users/azaa/Desktop/DSH/previews';
-const PROFILE = `/Users/azaa/Desktop/DSH/.chrome-preview-${Date.now()}`;
-const URL_ = 'file:///Users/azaa/Desktop/DSH/EPQ-Robotic-Arm-3D.html';
+const OUT = path.resolve(ROOT, '..', 'previews');
+const PROFILE = path.join(os.tmpdir(), `epq-arm-preview-${Date.now()}`);
+const URL_ = pathToFileURL(path.resolve(ROOT, '..', 'index.html')).href;
 fs.mkdirSync(OUT, { recursive: true });
 try { fs.rmSync(PROFILE, { recursive: true, force: true }); } catch {}
 

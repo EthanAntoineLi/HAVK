@@ -28,6 +28,6 @@ const template = fs.readFileSync(path.join(root, 'index.template.html'), 'utf8')
 if (!template.includes('<!--APP-->')) throw new Error('template marker missing');
 const html = template.replace('<!--APP-->', () => `<script>\n${js}\n</script>`);
 
-const out = path.resolve(root, '..', 'EPQ-Robotic-Arm-3D.html');
+const out = path.resolve(root, '..', 'index.html');
 fs.writeFileSync(out, html);
 console.log(`wrote ${out}  (${(html.length / 1024).toFixed(0)} KB, js ${(js.length / 1024).toFixed(0)} KB)`);
