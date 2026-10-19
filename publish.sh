@@ -22,7 +22,9 @@ fi
 
 if ! git remote get-url origin >/dev/null 2>&1; then
   echo "Creating public repository: $REPO_NAME"
-  gh repo create "$REPO_NAME" --public --source=. --remote=origin --push
+  gh repo create "$REPO_NAME" --public \
+    --description "Interactive 3D visualiser of a 5-DOF robotic arm (EPQ)" \
+    --source=. --remote=origin --push
 else
   echo "Pushing to existing origin"
   git push -u origin main

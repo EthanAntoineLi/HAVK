@@ -1,6 +1,6 @@
 # Publishing to GitHub
 
-This folder is already a git repository with one commit. The web demo is
+This folder is already a git repository with commits (repository name: HAVK). The web demo is
 `index.html`, so GitHub Pages can serve it directly from the repository root.
 
 ## Easiest: GitHub CLI
