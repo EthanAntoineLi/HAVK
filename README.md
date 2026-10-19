@@ -29,6 +29,20 @@ all embedded), so it runs offline with no server and no external requests. Open
 Keyboard: **Space** pause · **H** hide interface · **F** full screen · **R** reset
 camera · **1–5** select a joint for arrow-key nudging.
 
+## On a phone
+
+The layout is responsive. On phones the side panel starts **hidden**, so the 3D
+arm fills the screen; tap **Controls** (bottom-left) to open the control sheet. The
+3D view shrinks above the sheet so the arm stays visible while you drag the joint
+sliders. Close the sheet with **✕** or by tapping anywhere outside it. The camera
+presets stay in the bottom-right bar, and the panel's joint sliders, modes,
+speed and toggles are all usable by touch.
+
+<p>
+  <img src="previews/EPQ-Arm-mobile.png" width="300" alt="Phone layout with the controls hidden">
+  <img src="previews/EPQ-Arm-mobile-controls.png" width="300" alt="Phone controls sheet open">
+</p>
+
 ## About the model
 
 | Joint | Motion | Range | Actuator (from the report) |

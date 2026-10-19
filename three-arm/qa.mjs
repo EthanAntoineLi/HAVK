@@ -222,6 +222,52 @@ check('renderer resizes', resized.w === 1280 && resized.h === 720, JSON.stringif
 await screenshot('qa-07-1280x720');
 await send('Emulation.clearDeviceMetricsOverride');
 
+// ---------------------------------------------------------- mobile layout
+await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true, screenWidth: 390, screenHeight: 844 });
+await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }).catch(() => {});
+await send('Page.reload');
+await sleep(900);
+let mobileReady = false;
+for (let i = 0; i < 80; i++) {
+  try { mobileReady = await evaluate('!!window.__armReady'); } catch { mobileReady = false; }
+  if (mobileReady) break;
+  await sleep(250);
+}
+check('mobile page loads', mobileReady);
+await evaluate('__arm.setAuto(false); __arm.step(0.02, 30);');
+const mobileInit = await evaluate(`({
+  open: document.body.classList.contains('panel-open'),
+  opacity: getComputedStyle(document.getElementById('panel')).opacity,
+  toggle: getComputedStyle(document.getElementById('panel-toggle')).display,
+  overflow: document.documentElement.scrollWidth - innerWidth
+})`);
+check('mobile panel hidden by default', !mobileInit.open && mobileInit.opacity === '0' && mobileInit.toggle !== 'none', JSON.stringify(mobileInit));
+check('mobile no horizontal overflow', mobileInit.overflow <= 1, JSON.stringify(mobileInit));
+await evaluate('document.getElementById("panel").style.transition = "none"; document.getElementById("stage").style.transition = "none"; document.getElementById("labels").style.transition = "none";');
+await evaluate('document.getElementById("panel-toggle").click()');
+await sleep(250);
+await evaluate('window.dispatchEvent(new Event("resize")); __arm.step(0.02, 10);');
+await sleep(350);
+const mobileOpen = await evaluate(`({
+  open: document.body.classList.contains('panel-open'),
+  opacity: getComputedStyle(document.getElementById('panel')).opacity,
+  expanded: document.getElementById('panel-toggle').getAttribute('aria-expanded'),
+  canvasH: __arm.renderer.domElement.clientHeight,
+  viewportH: innerHeight,
+  labelsOpacity: getComputedStyle(document.getElementById('labels')).opacity
+})`);
+check('mobile controls sheet opens', mobileOpen.open && mobileOpen.opacity === '1' && mobileOpen.expanded === 'true', JSON.stringify(mobileOpen));
+check('mobile 3D view shrinks above the sheet', mobileOpen.canvasH > 0 && mobileOpen.canvasH < mobileOpen.viewportH * 0.7, JSON.stringify(mobileOpen));
+check('mobile labels hidden while posing', mobileOpen.labelsOpacity === '0', JSON.stringify(mobileOpen.labelsOpacity));
+await screenshot('qa-08-mobile-controls');
+await evaluate('document.getElementById("panel-close").click()');
+await sleep(300);
+await evaluate('window.dispatchEvent(new Event("resize")); __arm.step(0.02, 5);');
+await sleep(200);
+const mobileClosed = await evaluate('({ open: document.body.classList.contains("panel-open"), opacity: getComputedStyle(document.getElementById("panel")).opacity })');
+check('mobile controls close', !mobileClosed.open && parseFloat(mobileClosed.opacity) < 0.05, JSON.stringify(mobileClosed));
+await send('Emulation.clearDeviceMetricsOverride');
+
 check('no runtime errors', errors.length === 0, errors.join(' | ').slice(0, 400));
 
 fs.writeFileSync(path.join(ROOT, 'qa-report.json'), JSON.stringify({ report, errors, consoleLines }, null, 2));

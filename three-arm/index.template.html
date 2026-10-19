@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05070a">
 <title>5-DOF Robotic Arm · EPQ</title>
 <style>
   :root{
@@ -172,6 +173,77 @@
     #panel{width:280px}
     #viewbar .hint{display:none}
   }
+
+  /* --------------------------------------------------------------- mobile */
+  #scrim{position:fixed;inset:0;z-index:9;background:rgba(3,5,8,.18);opacity:0;pointer-events:none;
+    transition:opacity .28s ease}
+  #panel-toggle{display:none;position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));
+    z-index:10;appearance:none;cursor:pointer;align-items:center;gap:8px;
+    border:1px solid var(--line2);background:rgba(13,17,23,.8);color:var(--text);
+    font:600 11px var(--sans);letter-spacing:.04em;padding:10px 14px 10px 12px;border-radius:999px;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    box-shadow:0 12px 34px rgba(0,0,0,.45);transition:opacity .25s, transform .25s}
+  #panel-toggle .bars{display:flex;flex-direction:column;gap:3px}
+  #panel-toggle .bars i{display:block;width:13px;height:1.5px;border-radius:1px;background:var(--accent);
+    box-shadow:0 0 8px rgba(255,122,31,.45)}
+  #panel-close{display:none;position:absolute;top:10px;right:10px;z-index:2;width:32px;height:32px;
+    appearance:none;cursor:pointer;border-radius:50%;border:1px solid var(--line2);
+    background:rgba(255,255,255,.04);color:var(--muted);font:500 15px/1 var(--sans);padding:0}
+  #panel-close:active{background:rgba(255,255,255,.1)}
+
+  @media (max-width: 760px), (max-height: 560px){
+    #titleblock{left:16px;top:calc(14px + env(safe-area-inset-top,0px));max-width:calc(100% - 32px)}
+    #titleblock .eyebrow{font-size:8.5px;letter-spacing:.2em;gap:7px}
+    #titleblock .eyebrow i{width:5px;height:5px}
+    #titleblock h1{font-size:20px;margin:8px 0 0}
+    #titleblock p, #titleblock .meta{display:none}
+    #credit, #caption, #hide-ui, #show-ui{display:none}
+    #panel{left:0;right:0;top:auto;bottom:0;width:auto;max-height:64vh;max-height:64dvh;overflow-y:auto;
+      -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+      padding:14px 15px calc(15px + env(safe-area-inset-bottom,0px));
+      border-radius:18px 18px 0 0;border-left:0;border-right:0;border-bottom:0;
+      transform:translateY(104%);opacity:0;pointer-events:none;
+      transition:transform .32s cubic-bezier(.2,.8,.2,1), opacity .22s ease;z-index:11;
+      box-shadow:0 -20px 60px rgba(0,0,0,.6)}
+    body.panel-open #panel{transform:none;opacity:1;pointer-events:auto}
+    body.panel-open #scrim{opacity:1;pointer-events:auto}
+    body.panel-open #panel-toggle{opacity:0;pointer-events:none;transform:translateY(10px)}
+    #panel .mode-row{grid-template-columns:1fr 1fr 1fr 1fr 32px;gap:5px;padding-right:38px}
+    .mode{font-size:11px;padding:9px 3px}
+    .pause{padding:9px 0;font-size:10px}
+    .joint{padding:5px 2px 4px}
+    .jname{font-size:13px}
+    .jangle{font-size:11.5px}
+    .jspec{display:none}
+    input[type=range]{height:18px}
+    input[type=range]::-webkit-slider-thumb{width:15px;height:15px;margin-top:-5.5px}
+    .switch-row{gap:6px;margin-top:11px}
+    .chip{padding:8px 12px;font-size:10.5px}
+    .speed-row b{font-size:11px}
+    #panel-toggle{display:flex}
+    #panel-close{display:block}
+    #viewbar{right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));gap:4px;flex-wrap:nowrap}
+    #viewbar button{padding:7px 8px;font-size:9px;border-radius:7px}
+    #viewbar .hint{display:none}
+    .lbl{padding:2px 6px 2px 5px;gap:4px}
+    .lbl b, .lbl span{font-size:8.5px}
+    .lbl .dot{width:4px;height:4px}
+    #stage canvas{touch-action:none}
+    body.panel-open #labels{opacity:0!important}
+  }
+  @media (max-width: 380px){
+    #viewbar button[data-view="reset"]{display:none}
+  }
+  @media (max-width: 760px) and (orientation: portrait){
+    #stage{transition:bottom .32s cubic-bezier(.2,.8,.2,1)}
+    body.panel-open #stage{bottom:54dvh}
+  }
+  @media (max-width: 760px) and (max-height: 560px){
+    #panel{max-height:92vh;max-height:92dvh}
+    .joint{padding:4px 2px}
+    .switch-row{margin-top:8px}
+    #titleblock h1{font-size:18px}
+  }
 </style>
 </head>
 <body>
@@ -186,7 +258,9 @@
   <div class="meta"><b>Ethan Li</b> &nbsp;·&nbsp; 5 DOF built &nbsp;·&nbsp; 6 DOF designed</div>
 </header>
 
-<aside id="panel">
+<div id="scrim"></div>
+<aside id="panel" role="dialog" aria-label="Controls">
+  <button id="panel-close" aria-label="Close controls">✕</button>
   <div class="mode-row" id="modes">
     <button class="mode active" data-mode="showcase" title="Looping automatic motion sequence">Showcase</button>
     <button class="mode" data-mode="range" title="Sweep each joint through its full range">Range</button>
@@ -212,6 +286,7 @@
     </div>
   </div>
 </aside>
+<button id="panel-toggle" aria-controls="panel" aria-expanded="false"><span class="bars"><i></i><i></i><i></i></span>Controls</button>
 
 <div id="caption">
   <span class="cap-mode" id="cap-mode">SHOWCASE</span>

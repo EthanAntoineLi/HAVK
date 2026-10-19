@@ -23,7 +23,7 @@
     {
       "label": "intro camera dolly running",
       "ok": true,
-      "detail": "{\"active\":\"showcase\",\"camZ\":2.09}"
+      "detail": "{\"active\":\"showcase\",\"camZ\":2.1}"
     },
     {
       "label": "WebGL canvas present",
@@ -134,6 +134,41 @@
       "label": "renderer resizes",
       "ok": true,
       "detail": "{\"w\":1280,\"h\":720}"
+    },
+    {
+      "label": "mobile page loads",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "mobile panel hidden by default",
+      "ok": true,
+      "detail": "{\"open\":false,\"opacity\":\"0\",\"toggle\":\"flex\",\"overflow\":0}"
+    },
+    {
+      "label": "mobile no horizontal overflow",
+      "ok": true,
+      "detail": "{\"open\":false,\"opacity\":\"0\",\"toggle\":\"flex\",\"overflow\":0}"
+    },
+    {
+      "label": "mobile controls sheet opens",
+      "ok": true,
+      "detail": "{\"open\":true,\"opacity\":\"1\",\"expanded\":\"true\",\"canvasH\":388,\"viewportH\":844,\"labelsOpacity\":\"0\"}"
+    },
+    {
+      "label": "mobile 3D view shrinks above the sheet",
+      "ok": true,
+      "detail": "{\"open\":true,\"opacity\":\"1\",\"expanded\":\"true\",\"canvasH\":388,\"viewportH\":844,\"labelsOpacity\":\"0\"}"
+    },
+    {
+      "label": "mobile labels hidden while posing",
+      "ok": true,
+      "detail": "\"0\""
+    },
+    {
+      "label": "mobile controls close",
+      "ok": true,
+      "detail": "{\"open\":false,\"opacity\":\"0\"}"
     },
     {
       "label": "no runtime errors",

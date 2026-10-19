@@ -13,11 +13,13 @@ import { createUI } from './ui.js';
 const params = new URLSearchParams(location.search);
 const SHOT = params.has('shot');
 const NO_UI = params.get('ui') === '0';
+const MOBILE_MQ = window.matchMedia('(max-width: 760px), (max-height: 560px)');
+const isMobileLayout = () => MOBILE_MQ.matches;
 
 const stage = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(stage.clientWidth || window.innerWidth, stage.clientHeight || window.innerHeight);
 renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -28,7 +30,7 @@ stage.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x070a0f, 0.26);
 
-const camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.01, 30);
+const camera = new THREE.PerspectiveCamera(36, (stage.clientWidth || window.innerWidth) / (stage.clientHeight || window.innerHeight), 0.01, 30);
 camera.position.set(1.7, 1.05, 1.95);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -192,6 +194,7 @@ const ui = createUI({
   onMode: mode => {
     if (mode === 'home') setMode('home');
     else setMode(mode);
+    if (isMobileLayout() && mode !== 'manual') setPanelOpen(false);
   },
   onPause: () => {
     state.paused = !state.paused;
@@ -212,6 +215,31 @@ const ui = createUI({
   onResetView: () => flyTo('iso'),
   onHideUI: () => toggleUI()
 });
+
+// ---------------------------------------------------------- mobile panel
+const panelEl = document.getElementById('panel');
+const panelToggle = document.getElementById('panel-toggle');
+const panelClose = document.getElementById('panel-close');
+const scrim = document.getElementById('scrim');
+
+function setPanelOpen(open, focus = false) {
+  document.body.classList.toggle('panel-open', open);
+  if (panelToggle) panelToggle.setAttribute('aria-expanded', String(open));
+  if (panelEl) panelEl.setAttribute('aria-hidden', String(!open));
+  if (open && focus && panelClose) panelClose.focus({ preventScroll: true });
+  if (!open && focus && panelToggle) panelToggle.focus({ preventScroll: true });
+}
+if (panelToggle) panelToggle.addEventListener('click', () => setPanelOpen(!document.body.classList.contains('panel-open'), true));
+if (panelClose) panelClose.addEventListener('click', () => setPanelOpen(false, true));
+if (scrim) scrim.addEventListener('click', () => setPanelOpen(false));
+
+function syncPanelToViewport() {
+  setPanelOpen(false);
+  if (panelEl) panelEl.setAttribute('aria-hidden', String(isMobileLayout()));
+}
+syncPanelToViewport();
+if (MOBILE_MQ.addEventListener) MOBILE_MQ.addEventListener('change', syncPanelToViewport);
+else if (MOBILE_MQ.addListener) MOBILE_MQ.addListener(syncPanelToViewport);
 
 function setMode(mode) {
   state.mode = mode;
@@ -283,6 +311,10 @@ function toggleSetting(name) {
 }
 
 function toggleUI() {
+  if (isMobileLayout()) {
+    setPanelOpen(!document.body.classList.contains('panel-open'));
+    return;
+  }
   document.body.classList.toggle('ui-hidden');
 }
 
@@ -348,8 +380,8 @@ const labelOffsets = [
 ];
 function updateLabels() {
   if (!state.labels) return;
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const w = renderer.domElement.clientWidth;
+  const h = renderer.domElement.clientHeight;
   const v = tmpVec;
   for (let i = 0; i < arm.joints.length; i++) {
     arm.joints[i].getWorldPosition(v);
@@ -378,8 +410,19 @@ const VIEWS = {
 };
 
 let camTween = null;
+function viewFor(name) {
+  const v = VIEWS[name] || VIEWS.iso;
+  if (!isMobileLayout()) return { pos: v.pos.clone(), target: v.target.clone() };
+  const portrait = window.innerHeight >= window.innerWidth;
+  const scale = portrait ? 1.30 : 1.02;
+  const target = v.target.clone();
+  return {
+    pos: target.clone().add(v.pos.clone().sub(v.target).multiplyScalar(scale)),
+    target
+  };
+}
 function flyTo(name, instant = false) {
-  const view = VIEWS[name] || VIEWS.iso;
+  const view = viewFor(name);
   if (instant) {
     camera.position.copy(view.pos);
     controls.target.copy(view.target);
@@ -407,9 +450,9 @@ const intro = {
   t: 0,
   dur: 2.6,
   fromCam: new THREE.Vector3(2.05, 1.28, 2.15),
-  toCam: VIEWS.iso.pos.clone(),
+  toCam: viewFor('iso').pos,
   fromTarget: new THREE.Vector3(0.0, 0.46, 0.0),
-  toTarget: VIEWS.iso.target.clone(),
+  toTarget: viewFor('iso').target,
   fromPose: [0, 0, 0, 0, 0].map(v => v * RAD),
   toPose: homePose()
 };
@@ -429,8 +472,9 @@ function updateIntro(dt) {
     state.angles = homePose();
     state.targets = homePose();
     applyAngles();
-    camera.position.copy(VIEWS.iso.pos);
-    controls.target.copy(VIEWS.iso.target);
+    const isoView = viewFor('iso');
+    camera.position.copy(isoView.pos);
+    controls.target.copy(isoView.target);
     controls.enabled = true;
     controls.update();
     setMode('showcase');
@@ -533,12 +577,16 @@ function frame() {
 }
 
 // ------------------------------------------------------------------ resize
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+function resizeRenderer() {
+  const w = stage.clientWidth || window.innerWidth;
+  const h = stage.clientHeight || window.innerHeight;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+  renderer.setSize(w, h);
+}
+window.addEventListener('resize', resizeRenderer);
+if (window.ResizeObserver) new ResizeObserver(resizeRenderer).observe(stage);
 
 // ---------------------------------------------------------------- keyboard
 const keyNudge = { selected: 0 };
@@ -550,6 +598,8 @@ window.addEventListener('keydown', e => {
     state.paused = !state.paused;
     ui.setPaused(state.paused);
     updateCaption();
+  } else if (k === 'Escape') {
+    if (document.body.classList.contains('panel-open')) setPanelOpen(false, true);
   } else if (k === 'h' || k === 'H') {
     toggleUI();
   } else if (k === 'r' || k === 'R') {
