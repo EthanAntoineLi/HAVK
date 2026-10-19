@@ -23,12 +23,12 @@ renderer.setSize(stage.clientWidth || window.innerWidth, stage.clientHeight || w
 renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
+renderer.toneMappingExposure = 1.05;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x070a0f, 0.26);
+scene.fog = null;
 
 const camera = new THREE.PerspectiveCamera(36, (stage.clientWidth || window.innerWidth) / (stage.clientHeight || window.innerHeight), 0.01, 30);
 camera.position.set(1.7, 1.05, 1.95);
@@ -50,11 +50,11 @@ controls.enabled = false;
 const pmrem = new THREE.PMREMGenerator(renderer);
 const envScene = new RoomEnvironment();
 scene.environment = pmrem.fromScene(envScene, 0.04).texture;
-scene.environmentIntensity = 0.9;
+scene.environmentIntensity = 0.8;
 
 // lights
-scene.add(new THREE.HemisphereLight(0x9db8dd, 0x0d0f13, 0.9));
-const key = new THREE.DirectionalLight(0xfff6ec, 3.5);
+scene.add(new THREE.HemisphereLight(0xFFFFFF, 0xE4ECF5, 1.15));
+const key = new THREE.DirectionalLight(0xFFF6EC, 3.2);
 key.position.set(1.15, 1.75, 0.95);
 key.castShadow = false;
 key.shadow.mapSize.set(2048, 2048);
@@ -69,18 +69,21 @@ key.shadow.normalBias = 0.03;
 key.shadow.radius = 4;
 key.shadow.intensity = 0.72;
 scene.add(key);
-const fill = new THREE.DirectionalLight(0x7fa8ff, 1.3);
+const fill = new THREE.DirectionalLight(0x9FC4E8, 1.2);
 fill.position.set(-1.7, 0.75, 0.9);
 scene.add(fill);
-const rim = new THREE.DirectionalLight(0x9dc2ff, 2.0);
+const rim = new THREE.DirectionalLight(0x0A7194, 1.3);
 rim.position.set(-1.3, 1.2, -1.5);
 scene.add(rim);
-const rim2 = new THREE.DirectionalLight(0xffa765, 1.6);
+const rim2 = new THREE.DirectionalLight(0xC2410C, 0.9);
 rim2.position.set(1.5, 0.75, -1.4);
 scene.add(rim2);
-const bounce = new THREE.DirectionalLight(0x3f6f9e, 0.4);
+const bounce = new THREE.DirectionalLight(0xD3DDE8, 0.6);
 bounce.position.set(0.3, -1.0, 0.8);
 scene.add(bounce);
+const frontFill = new THREE.DirectionalLight(0xFFFFFF, 0.9);
+frontFill.position.set(-0.4, 0.35, 2.0);
+scene.add(frontFill);
 
 // ------------------------------------------------------------------- floor
 function buildFloor() {
@@ -176,7 +179,7 @@ function buildAxisArrows() {
     if (a.parent) a.parent.remove(a);
   }
   axisArrows = arm.joints.map((group, i) => {
-    const arrow = new THREE.ArrowHelper(AXIS_DIRS[i], new THREE.Vector3(0, 0, 0), 0.095, 0xff7a1f, 0.018, 0.011);
+    const arrow = new THREE.ArrowHelper(AXIS_DIRS[i], new THREE.Vector3(0, 0, 0), 0.095, 0xC2410C, 0.018, 0.011);
     arrow.traverse(o => {
       if (o.material) {
         o.material.transparent = true;
@@ -229,6 +232,11 @@ function setPanelOpen(open, focus = false) {
   if (isMobileLayout()) {
     camera.fov = open ? 31 : 36;
     camera.updateProjectionMatrix();
+    if (open && panelEl) {
+      requestAnimationFrame(() => {
+        document.documentElement.style.setProperty('--sheet-h', panelEl.offsetHeight + 'px');
+      });
+    }
   }
   if (open && focus && panelClose) panelClose.focus({ preventScroll: true });
   if (!open && focus && panelToggle) panelToggle.focus({ preventScroll: true });
@@ -339,8 +347,8 @@ const trailGeo = new THREE.BufferGeometry();
 trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
 trailGeo.setDrawRange(0, 0);
 const trailLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({
-  color: 0xff8a3a, transparent: true, opacity: 0.68, depthWrite: false,
-  blending: THREE.AdditiveBlending, fog: false
+  color: 0xC2410C, transparent: true, opacity: 0.55, depthWrite: false,
+  blending: THREE.NormalBlending, fog: false
 }));
 trailLine.frustumCulled = false;
 scene.add(trailLine);
@@ -349,7 +357,7 @@ const tmpVec = new THREE.Vector3();
 // glowing tool-point marker at the end effector
 const eefDot = new THREE.Mesh(
   new THREE.SphereGeometry(0.0055, 20, 14),
-  new THREE.MeshStandardMaterial({ color: 0xff7a1f, emissive: 0xff4d00, emissiveIntensity: 1.4, roughness: 0.35, metalness: 0.1 })
+  new THREE.MeshStandardMaterial({ color: 0xC2410C, emissive: 0x7A2606, emissiveIntensity: 0.55, roughness: 0.4, metalness: 0.1 })
 );
 eefDot.castShadow = false;
 
@@ -739,7 +747,7 @@ loadArm().then(real => {
   // small wrist reference triad at the J5 output, shown with the joint axes
   toolAxes = new THREE.Group();
   toolAxes.position.set(0.0565, 0, 0);
-  const toolCols = [0xff7a1f, 0x63e6be, 0x6ea8ff];
+  const toolCols = [0xC2410C, 0x0A7194, 0x946200];
   const toolDirs = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
   for (let i = 0; i < 3; i++) {
     const a = new THREE.ArrowHelper(toolDirs[i], new THREE.Vector3(0, 0, 0), 0.032, toolCols[i], 0.008, 0.005);
@@ -767,6 +775,6 @@ loadArm().then(real => {
   if (fader) fader.remove();
   const d = document.createElement('div');
   d.textContent = 'Could not load the CAD model: ' + (err && err.message ? err.message : err);
-  d.style.cssText = 'position:fixed;left:20px;bottom:20px;z-index:99;background:#9b1c1c;color:#fff;font:13px ui-monospace,monospace;padding:10px 14px;border-radius:8px';
+  d.style.cssText = 'position:fixed;left:20px;bottom:20px;z-index:99;background:#C42638;color:#fff;font:13px ui-monospace,monospace;padding:10px 14px;border-radius:8px';
   document.body.appendChild(d);
 });

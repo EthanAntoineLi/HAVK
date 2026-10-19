@@ -15,6 +15,8 @@ all embedded), so it runs offline with no server and no external requests. Open
 
 - The **real CAD geometry** from `cad/EPQ-3.1-Design-FINAL.step` (Shapr3D) — not a
   procedural stand-in — articulated at all five joints (~290k triangles).
+- A light drafting-paper palette: `#EEF2F7` paper, `#0B1B2F` text, `#C2410C` accent
+  and a fine `#D3DDE8` grid.
 - The arm **floats in mid-air** with no stand or floor, shown in its intended
   chest-mount orientation (the J1 motor axis is horizontal).
 - All joints start at **0°**; **Home** returns to that rest pose.
@@ -66,7 +68,7 @@ structure.
 
 ```
 index.html                 single-file, offline demo (GitHub Pages entry point)
-previews/                  1920×1080 stills used in this README
+previews/                  desktop and phone stills used in this README
 cad/                       original STEP assembly
 three-arm/                 source used to build index.html
   build.mjs                embeds model/arm-opt.glb + src/ into index.html

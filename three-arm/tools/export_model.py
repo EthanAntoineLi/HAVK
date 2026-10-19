@@ -73,10 +73,16 @@ def group_for(comp, solid, bbox):
         return 5 if bbox[2] <= -170.0 else 4
     return 0
 
-def classify(comp, bbox, vol):
+def classify(comp, bbox, vol, solid=0):
     x0,y0,z0,x1,y1,z1 = bbox
     maxdim = max(x1-x0, y1-y0, z1-z0)
     cy = (y0+y1)*0.5
+    # J2 shoulder module: the worm gearbox internals and motor-mount plate are metal,
+    # while the printed shoulder yoke/housing stays printed.
+    if comp == 8 and solid in (8, 19, 10, 15):
+        return 'silver'
+    if comp == 8 and solid in (1, 2, 3, 4, 5, 7, 9, 11, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 25, 26, 27, 28):
+        return 'steel'
     if comp in (6,7,8,10): return 'printed'
     if comp == 9:
         if cy > 262: return 'motor'
@@ -139,7 +145,7 @@ for ci in range(1, comps.Length()+1):
             props=GProp_GProps(); BRepGProp.VolumeProperties_s(solid, props); vol=props.Mass()
         except Exception: pass
         if maxdim < 4.0 or vol < 12.0: continue
-        mat = classify(ci, bbox, vol)
+        mat = classify(ci, bbox, vol, solid_i)
         grp = group_for(ci, solid_i, bbox)
         BRepMesh_IncrementalMesh(solid, defl_for(bbox), False, 0.5, True)
         fexp = TopExp_Explorer(solid, TopAbs_FACE)

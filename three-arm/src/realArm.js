@@ -34,10 +34,10 @@ export function createSceneMaterials() {
   const grain = makeGrainTexture();
   const std = o => new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, ...o });
   return {
-    printed: std({ color: 0x16181d, roughness: 0.66, metalness: 0.05, bumpMap: grain, bumpScale: 0.0006 }),
-    motor: std({ color: 0x0a0b0d, roughness: 0.46, metalness: 0.55 }),
+    printed: std({ color: 0x1b222c, roughness: 0.66, metalness: 0.05, bumpMap: grain, bumpScale: 0.0006 }),
+    motor: std({ color: 0x11151c, roughness: 0.46, metalness: 0.55 }),
     silver: std({ color: 0x99a1ac, roughness: 0.42, metalness: 0.88 }),
-    steel: std({ color: 0xb4bac3, roughness: 0.3, metalness: 0.95 }),
+    steel: std({ color: 0xaab1bb, roughness: 0.3, metalness: 0.95 }),
     stand: std({ color: 0x14171c, roughness: 0.68, metalness: 0.25 }),
     standTrim: std({ color: 0x3b424d, roughness: 0.55, metalness: 0.55 }),
     accent: std({ color: 0xff7a1f, roughness: 0.4, metalness: 0.2, emissive: 0x6b2600, emissiveIntensity: 0.5 })

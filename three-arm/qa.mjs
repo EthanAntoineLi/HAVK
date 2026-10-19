@@ -143,7 +143,7 @@ for (let k = 0; k < 6 && !changed; k++) {
   changed = sample.some((v, i) => Math.abs(v - a0[i]) > 0.5);
 }
 check('arm is animating', changed, JSON.stringify(lastAngles));
-const trailCount = await evaluate('(() => { const l = __arm.scene.children.find(o => o.isLine && o.geometry && o.geometry.attributes.position && o.material && o.material.blending === 2); return l ? l.geometry.drawRange.count : -1; })()');
+const trailCount = await evaluate('(() => { const l = __arm.scene.children.find(o => o.isLine && o.geometry && o.geometry.attributes.position); return l ? l.geometry.drawRange.count : -1; })()');
 check('end-effector motion trail accumulating', trailCount > 20, `points=${trailCount}`);
 const perf = await evaluate('({calls: __arm.renderer.info.render.calls, tris: __arm.renderer.info.render.triangles})');
 check('draw calls reasonable', perf.calls < 400, JSON.stringify(perf));

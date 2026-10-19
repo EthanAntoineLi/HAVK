@@ -13,17 +13,17 @@
     {
       "label": "GLB hierarchy present",
       "ok": true,
-      "detail": "{\"name\":\"EPQ_ARM_FLOATING\",\"joints\":5,\"meshes\":27}"
+      "detail": "{\"name\":\"EPQ_ARM_FLOATING\",\"joints\":5,\"meshes\":29}"
     },
     {
       "label": "CAD meshes present",
       "ok": true,
-      "detail": "meshes=27"
+      "detail": "meshes=29"
     },
     {
       "label": "intro camera dolly running",
       "ok": true,
-      "detail": "{\"active\":\"showcase\",\"camZ\":2.1}"
+      "detail": "{\"active\":\"showcase\",\"camZ\":2.11}"
     },
     {
       "label": "WebGL canvas present",
@@ -63,12 +63,12 @@
     {
       "label": "draw calls reasonable",
       "ok": true,
-      "detail": "{\"calls\":20,\"tris\":290541}"
+      "detail": "{\"calls\":22,\"tris\":290541}"
     },
     {
       "label": "triangle count reasonable",
       "ok": true,
-      "detail": "{\"calls\":20,\"tris\":290541}"
+      "detail": "{\"calls\":22,\"tris\":290541}"
     },
     {
       "label": "pause toggles",
@@ -153,12 +153,12 @@
     {
       "label": "mobile controls sheet opens",
       "ok": true,
-      "detail": "{\"open\":true,\"opacity\":\"1\",\"expanded\":\"true\",\"canvasH\":388,\"viewportH\":844,\"labelsOpacity\":\"0\"}"
+      "detail": "{\"open\":true,\"opacity\":\"1\",\"expanded\":\"true\",\"canvasH\":444,\"viewportH\":844,\"labelsOpacity\":\"0\"}"
     },
     {
       "label": "mobile 3D view shrinks above the sheet",
       "ok": true,
-      "detail": "{\"open\":true,\"opacity\":\"1\",\"expanded\":\"true\",\"canvasH\":388,\"viewportH\":844,\"labelsOpacity\":\"0\"}"
+      "detail": "{\"open\":true,\"opacity\":\"1\",\"expanded\":\"true\",\"canvasH\":444,\"viewportH\":844,\"labelsOpacity\":\"0\"}"
     },
     {
       "label": "mobile labels hidden while posing",
