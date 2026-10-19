@@ -1,0 +1,718 @@
+// EPQ 5-DOF robotic arm — interactive three.js visualisation.
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadArm } from './realArm.js';
+import {
+  JOINTS, RAD, DEG, homePose,
+  createShowcase, createRangeTest, createHomeMove, easeInOut
+} from './motion.js';
+import { createUI } from './ui.js';
+
+// ------------------------------------------------------------------- setup
+const params = new URLSearchParams(location.search);
+const SHOT = params.has('shot');
+const NO_UI = params.get('ui') === '0';
+
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = false;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x070a0f, 0.26);
+
+const camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.01, 30);
+camera.position.set(1.7, 1.05, 1.95);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0.11, 0.31, 0.0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.075;
+controls.rotateSpeed = 0.75;
+controls.zoomSpeed = 0.85;
+controls.panSpeed = 0.55;
+controls.minDistance = 0.55;
+controls.maxDistance = 3.4;
+controls.maxPolarAngle = Math.PI * 0.492;
+controls.autoRotateSpeed = 0.75;
+controls.enabled = false;
+
+// environment reflections
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envScene = new RoomEnvironment();
+scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+scene.environmentIntensity = 0.9;
+
+// lights
+scene.add(new THREE.HemisphereLight(0x9db8dd, 0x0d0f13, 0.9));
+const key = new THREE.DirectionalLight(0xfff6ec, 3.5);
+key.position.set(1.15, 1.75, 0.95);
+key.castShadow = false;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -1.1;
+key.shadow.camera.right = 1.1;
+key.shadow.camera.top = 1.2;
+key.shadow.camera.bottom = -0.9;
+key.shadow.camera.near = 0.2;
+key.shadow.camera.far = 5;
+key.shadow.bias = -0.00035;
+key.shadow.normalBias = 0.03;
+key.shadow.radius = 4;
+key.shadow.intensity = 0.72;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0x7fa8ff, 1.3);
+fill.position.set(-1.7, 0.75, 0.9);
+scene.add(fill);
+const rim = new THREE.DirectionalLight(0x9dc2ff, 2.0);
+rim.position.set(-1.3, 1.2, -1.5);
+scene.add(rim);
+const rim2 = new THREE.DirectionalLight(0xffa765, 1.6);
+rim2.position.set(1.5, 0.75, -1.4);
+scene.add(rim2);
+const bounce = new THREE.DirectionalLight(0x3f6f9e, 0.4);
+bounce.position.set(0.3, -1.0, 0.8);
+scene.add(bounce);
+
+// ------------------------------------------------------------------- floor
+function buildFloor() {
+  const group = new THREE.Group();
+  const c = document.createElement('canvas');
+  c.width = c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 512, 512);
+  const grd = ctx.createRadialGradient(256, 256, 10, 256, 256, 256);
+  grd.addColorStop(0, 'rgba(44,56,72,0.98)');
+  grd.addColorStop(0.34, 'rgba(23,30,41,0.96)');
+  grd.addColorStop(0.62, 'rgba(13,17,24,0.82)');
+  grd.addColorStop(0.86, 'rgba(7,9,13,0.38)');
+  grd.addColorStop(1, 'rgba(5,7,10,0)');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, 512, 512);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(3.1, 160),
+    new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.9, metalness: 0.05, depthWrite: true })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  group.add(floor);
+
+  // faint technical rings
+  const ringMat = new THREE.LineBasicMaterial({ color: 0x4b6078, transparent: true, opacity: 0.34, depthWrite: false });
+  const ringMat2 = new THREE.LineBasicMaterial({ color: 0x4b6078, transparent: true, opacity: 0.17, depthWrite: false });
+  for (const [r, mat] of [[0.30, ringMat], [0.60, ringMat], [0.95, ringMat2], [1.35, ringMat2], [1.85, ringMat2], [2.45, ringMat2]]) {
+    const pts = [];
+    for (let i = 0; i <= 256; i++) {
+      const a = (i / 256) * Math.PI * 2;
+      pts.push(new THREE.Vector3(Math.cos(a) * r, 0.004, Math.sin(a) * r));
+    }
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  }
+  // radial tick marks
+  const tickMat = new THREE.LineBasicMaterial({ color: 0x4b6078, transparent: true, opacity: 0.12, depthWrite: false });
+  for (let i = 0; i < 36; i++) {
+    const a = (i / 36) * Math.PI * 2;
+    const r0 = i % 3 === 0 ? 0.30 : 0.585;
+    const r1 = i % 3 === 0 ? 0.36 : 0.62;
+    const pts = [
+      new THREE.Vector3(Math.cos(a) * r0, 0.004, Math.sin(a) * r0),
+      new THREE.Vector3(Math.cos(a) * r1, 0.004, Math.sin(a) * r1)
+    ];
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), tickMat));
+  }
+  scene.add(group);
+  return group;
+}
+
+// --------------------------------------------------------------------- arm
+// Placeholder arm so the UI / motion logic can be built before the CAD model
+// finishes loading; it is replaced by the real GLB arm in boot().
+let arm = {
+  root: new THREE.Group(),
+  joints: [0, 1, 2, 3, 4].map(() => new THREE.Object3D()),
+  endEffector: new THREE.Object3D()
+};
+
+const AXIS_DIRS = [
+  new THREE.Vector3(0, 1, 0),
+  new THREE.Vector3(0, 0, 1),
+  new THREE.Vector3(1, 0, 0),
+  new THREE.Vector3(0, 0, 1),
+  new THREE.Vector3(1, 0, 0)
+];
+let axisArrows = [];
+let toolAxes = null;
+
+// --------------------------------------------------------------- motion state
+const state = {
+  mode: 'showcase',
+  angles: homePose(),
+  targets: homePose(),
+  runner: null,
+  runnerTime: 0,
+  speed: 1,
+  paused: false,
+  activeJoint: -1,
+  caption: 'Automatic motion sequence',
+  trail: true,
+  axes: false,
+  labels: true,
+  rotate: false
+};
+
+function buildAxisArrows() {
+  for (const a of axisArrows) {
+    if (a.parent) a.parent.remove(a);
+  }
+  axisArrows = arm.joints.map((group, i) => {
+    const arrow = new THREE.ArrowHelper(AXIS_DIRS[i], new THREE.Vector3(0, 0, 0), 0.095, 0xff7a1f, 0.018, 0.011);
+    arrow.traverse(o => {
+      if (o.material) {
+        o.material.transparent = true;
+        o.material.opacity = 0.95;
+        o.material.depthWrite = false;
+      }
+    });
+    arrow.visible = state.axes;
+    group.add(arrow);
+    return arrow;
+  });
+}
+
+const ui = createUI({
+  onMode: mode => {
+    if (mode === 'home') setMode('home');
+    else setMode(mode);
+  },
+  onPause: () => {
+    state.paused = !state.paused;
+    ui.setPaused(state.paused);
+    updateCaption();
+  },
+  onSpeed: v => { state.speed = v; },
+  onSliderStart: () => enterManual(),
+  onSlider: (i, deg) => {
+    enterManual();
+    state.targets[i] = Math.max(JOINTS[i].min, Math.min(JOINTS[i].max, deg)) * RAD;
+    state.caption = 'Manual joint control';
+    updateCaption();
+  },
+  onSelect: () => {},
+  onToggle: name => toggleSetting(name),
+  onView: name => flyTo(name),
+  onResetView: () => flyTo('iso'),
+  onHideUI: () => toggleUI()
+});
+
+function setMode(mode) {
+  state.mode = mode;
+  state.runnerTime = 0;
+  state.paused = false;
+  ui.setPaused(false);
+  ui.setMode(mode);
+  resetTrail();
+  if (mode === 'showcase') {
+    state.runner = createShowcase();
+    state.runnerTime = 0;
+  } else if (mode === 'range') {
+    state.runner = createRangeTest();
+    state.runnerTime = 0;
+  } else if (mode === 'home') {
+    state.runner = createHomeMove([...state.angles]);
+    state.runnerTime = 0;
+  } else {
+    state.runner = null;
+    state.targets = [...state.angles];
+  }
+  if (mode === 'manual') {
+    state.caption = 'Drag a slider to pose the arm';
+    state.activeJoint = -1;
+  } else if (mode === 'home') {
+    state.caption = 'Returning to the home pose';
+    state.activeJoint = -1;
+  } else {
+    state.caption = 'Automatic motion sequence';
+  }
+  updateCaption();
+  ui.setActiveJoint(state.activeJoint);
+}
+
+function enterManual() {
+  if (state.mode === 'manual') return;
+  state.mode = 'manual';
+  state.runner = null;
+  state.paused = false;
+  ui.setPaused(false);
+  state.targets = [...state.angles];
+  state.activeJoint = -1;
+  state.caption = 'Manual joint control';
+  ui.setMode('manual');
+  ui.setActiveJoint(-1);
+  updateCaption();
+  resetTrail();
+}
+
+function toggleSetting(name) {
+  if (name === 'trail') {
+    state.trail = !state.trail;
+    if (!state.trail) resetTrail();
+    ui.setToggle('trail', state.trail);
+  } else if (name === 'axes') {
+    state.axes = !state.axes;
+    for (const a of axisArrows) a.visible = state.axes;
+    if (toolAxes) toolAxes.visible = state.axes;
+    ui.setToggle('axes', state.axes);
+  } else if (name === 'labels') {
+    state.labels = !state.labels;
+    document.getElementById('labels').style.opacity = state.labels ? '1' : '0';
+    ui.setToggle('labels', state.labels);
+  } else if (name === 'rotate') {
+    state.rotate = !state.rotate;
+    controls.autoRotate = state.rotate;
+    ui.setToggle('rotate', state.rotate);
+  }
+}
+
+function toggleUI() {
+  document.body.classList.toggle('ui-hidden');
+}
+
+// ------------------------------------------------------------------ caption
+function updateCaption() {
+  if (state.paused && state.mode !== 'manual') {
+    ui.setCaption(state.mode, 'Paused — ' + state.caption);
+  } else {
+    ui.setCaption(state.mode, state.caption);
+  }
+}
+
+// ------------------------------------------------------------------- trail
+const TRAIL_MAX = 560;
+const trailPoints = [];
+const trailPositions = new Float32Array(TRAIL_MAX * 3);
+const trailGeo = new THREE.BufferGeometry();
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+trailGeo.setDrawRange(0, 0);
+const trailLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({
+  color: 0xff8a3a, transparent: true, opacity: 0.68, depthWrite: false,
+  blending: THREE.AdditiveBlending, fog: false
+}));
+trailLine.frustumCulled = false;
+scene.add(trailLine);
+const tmpVec = new THREE.Vector3();
+
+// glowing tool-point marker at the end effector
+const eefDot = new THREE.Mesh(
+  new THREE.SphereGeometry(0.0055, 20, 14),
+  new THREE.MeshStandardMaterial({ color: 0xff7a1f, emissive: 0xff4d00, emissiveIntensity: 1.4, roughness: 0.35, metalness: 0.1 })
+);
+eefDot.castShadow = false;
+
+function resetTrail() {
+  trailPoints.length = 0;
+  trailGeo.setDrawRange(0, 0);
+}
+
+function sampleTrail() {
+  arm.endEffector.getWorldPosition(tmpVec);
+  if (!state.trail) return;
+  const n = trailPoints.length;
+  if (n > 0) {
+    const last = trailPoints[n - 1];
+    if (last.distanceToSquared(tmpVec) < 0.0000012) return;
+  }
+  trailPoints.push(tmpVec.clone());
+  if (trailPoints.length > TRAIL_MAX) trailPoints.shift();
+  for (let i = 0; i < trailPoints.length; i++) {
+    trailPositions[i * 3] = trailPoints[i].x;
+    trailPositions[i * 3 + 1] = trailPoints[i].y;
+    trailPositions[i * 3 + 2] = trailPoints[i].z;
+  }
+  trailGeo.attributes.position.needsUpdate = true;
+  trailGeo.setDrawRange(0, trailPoints.length);
+}
+
+// ------------------------------------------------------------------ labels
+const labelsEl = document.getElementById('labels');
+const labelOffsets = [
+  [-86, 0], [-86, -30], [52, -10], [72, 8], [72, 28]
+];
+function updateLabels() {
+  if (!state.labels) return;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const v = tmpVec;
+  for (let i = 0; i < arm.joints.length; i++) {
+    arm.joints[i].getWorldPosition(v);
+    v.project(camera);
+    const x = (v.x * 0.5 + 0.5) * w;
+    const y = (-v.y * 0.5 + 0.5) * h;
+    const el = ui.labels[i].el;
+    const visible = v.z < 1 && x > -80 && x < w + 80 && y > -60 && y < h + 60;
+    el.style.opacity = visible ? '1' : '0';
+    if (!visible) continue;
+    const [dx, dy] = labelOffsets[i];
+    el.style.left = x.toFixed(1) + 'px';
+    el.style.top = y.toFixed(1) + 'px';
+    el.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    ui.labels[i].angleEl.textContent = `${Math.round(state.angles[i] * DEG)}°`;
+  }
+}
+
+// ------------------------------------------------------------------ camera
+const VIEWS = {
+  iso: { pos: new THREE.Vector3(0.98, 0.88, 1.12), target: new THREE.Vector3(0.0, 0.42, 0.0) },
+  profile: { pos: new THREE.Vector3(1.70, 0.58, 0.0), target: new THREE.Vector3(0.0, 0.42, 0.0) },
+  front: { pos: new THREE.Vector3(0.0, 0.64, 1.66), target: new THREE.Vector3(0.0, 0.42, 0.0) },
+  top: { pos: new THREE.Vector3(0.0, 1.75, 0.001), target: new THREE.Vector3(0.0, 0.32, 0.0) },
+  detail: { pos: new THREE.Vector3(0.72, 0.60, 0.72), target: new THREE.Vector3(0.0, 0.42, 0.0) }
+};
+
+let camTween = null;
+function flyTo(name, instant = false) {
+  const view = VIEWS[name] || VIEWS.iso;
+  if (instant) {
+    camera.position.copy(view.pos);
+    controls.target.copy(view.target);
+    camera.lookAt(view.target);
+    controls.update();
+    ui.setView(name);
+    return;
+  }
+  camTween = {
+    fromPos: camera.position.clone(),
+    toPos: view.pos.clone(),
+    fromTarget: controls.target.clone(),
+    toTarget: view.target.clone(),
+    t: 0,
+    dur: 1.0,
+    name
+  };
+  controls.enabled = false;
+  ui.setView(name);
+}
+
+// ------------------------------------------------------------------- intro
+const intro = {
+  active: !SHOT && !params.has('pose') && !params.has('t'),
+  t: 0,
+  dur: 2.6,
+  fromCam: new THREE.Vector3(2.05, 1.28, 2.15),
+  toCam: VIEWS.iso.pos.clone(),
+  fromTarget: new THREE.Vector3(0.0, 0.46, 0.0),
+  toTarget: VIEWS.iso.target.clone(),
+  fromPose: [0, 0, 0, 0, 0].map(v => v * RAD),
+  toPose: homePose()
+};
+
+function updateIntro(dt) {
+  intro.t += dt / intro.dur;
+  const k = easeInOut(Math.min(1, intro.t));
+  camera.position.lerpVectors(intro.fromCam, intro.toCam, k);
+  controls.target.lerpVectors(intro.fromTarget, intro.toTarget, k);
+  camera.lookAt(controls.target);
+  for (let i = 0; i < 5; i++) {
+    state.angles[i] = intro.fromPose[i] + (intro.toPose[i] - intro.fromPose[i]) * k;
+  }
+  applyAngles();
+  if (intro.t >= 1) {
+    intro.active = false;
+    state.angles = homePose();
+    state.targets = homePose();
+    applyAngles();
+    camera.position.copy(VIEWS.iso.pos);
+    controls.target.copy(VIEWS.iso.target);
+    controls.enabled = true;
+    controls.update();
+    setMode('showcase');
+  }
+}
+
+function applyAngles() {
+  const a = state.angles;
+  // real CAD joint axes: J1 Y, J2 Z, J3 X (roll), J4 Z, J5 X (roll)
+  arm.joints[0].rotation.y = a[0];
+  arm.joints[1].rotation.z = a[1];
+  arm.joints[2].rotation.x = -a[2];
+  arm.joints[3].rotation.z = a[3];
+  arm.joints[4].rotation.x = -a[4];
+}
+
+// ------------------------------------------------------------------ update
+function updateMotion(dt) {
+  if (intro.active) { updateIntro(dt); return; }
+
+  if (state.mode !== 'manual' && state.runner && !state.paused) {
+    state.runnerTime += dt * state.speed;
+    const sample = state.runner.sample(state.runnerTime, state.angles);
+    state.targets = sample.pose;
+    state.caption = sample.caption;
+    if (state.activeJoint !== sample.activeJoint) {
+      state.activeJoint = sample.activeJoint;
+      ui.setActiveJoint(state.activeJoint);
+    }
+    if (state.mode === 'home' && state.runnerTime >= state.runner.duration) {
+      state.mode = 'manual';
+      state.runner = null;
+      state.runnerTime = 0;
+      ui.setMode('manual');
+      state.caption = 'Home pose — drag a slider or pick a demo';
+      state.activeJoint = -1;
+      ui.setActiveJoint(-1);
+      resetTrail();
+      updateCaption();
+    }
+  }
+
+  const k = 1 - Math.exp(-dt * 16);
+  for (let i = 0; i < 5; i++) {
+    state.angles[i] += (state.targets[i] - state.angles[i]) * k;
+    const lo = JOINTS[i].min * RAD - 0.02;
+    const hi = JOINTS[i].max * RAD + 0.02;
+    state.angles[i] = Math.min(hi, Math.max(lo, state.angles[i]));
+  }
+  applyAngles();
+}
+
+function updateCamera(dt) {
+  if (camTween) {
+    camTween.t += dt / camTween.dur;
+    const k = easeInOut(Math.min(1, camTween.t));
+    camera.position.lerpVectors(camTween.fromPos, camTween.toPos, k);
+    controls.target.lerpVectors(camTween.fromTarget, camTween.toTarget, k);
+    camera.lookAt(controls.target);
+    if (camTween.t >= 1) {
+      camTween = null;
+      controls.enabled = true;
+      controls.update();
+    }
+  }
+}
+
+// -------------------------------------------------------------------- loop
+let lastActive = -2;
+let captionTimer = 0;
+let autoLoop = true;
+const clock = new THREE.Clock();
+
+function tick(dt) {
+  updateMotion(dt);
+  updateCamera(dt);
+  if (!intro.active && !camTween) controls.update();
+
+  ui.update(state);
+  updateLabels();
+  if (!intro.active) sampleTrail();
+
+  captionTimer += dt;
+  if (captionTimer > 0.1) {
+    captionTimer = 0;
+    updateCaption();
+  }
+
+  if (state.activeJoint !== lastActive) {
+    lastActive = state.activeJoint;
+    ui.setActiveJoint(lastActive);
+  }
+}
+
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (autoLoop) tick(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+// ------------------------------------------------------------------ resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ---------------------------------------------------------------- keyboard
+const keyNudge = { selected: 0 };
+window.addEventListener('keydown', e => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  const k = e.key;
+  if (k === ' ') {
+    e.preventDefault();
+    state.paused = !state.paused;
+    ui.setPaused(state.paused);
+    updateCaption();
+  } else if (k === 'h' || k === 'H') {
+    toggleUI();
+  } else if (k === 'r' || k === 'R') {
+    flyTo('iso');
+  } else if (k === 'f' || k === 'F') {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => {});
+  } else if (k >= '1' && k <= '5') {
+    keyNudge.selected = parseInt(k, 10) - 1;
+  } else if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown') {
+    const i = keyNudge.selected;
+    const dir = (k === 'ArrowRight' || k === 'ArrowUp') ? 1 : -1;
+    const stepDeg = e.shiftKey ? 5 : 1;
+    enterManual();
+    const current = state.targets[i] * DEG + dir * stepDeg;
+    state.targets[i] = Math.max(JOINTS[i].min, Math.min(JOINTS[i].max, current)) * RAD;
+    state.caption = `Manual joint control · ${JOINTS[i].key}`;
+    updateCaption();
+    e.preventDefault();
+  }
+});
+
+// ------------------------------------------------------------- url overrides
+function applyParams() {
+  if (NO_UI) document.body.classList.add('ui-hidden', 'no-hint');
+  if (params.get('axes') === '1') state.axes = true;
+  if (params.get('trail') === '0') state.trail = false;
+  if (params.get('labels') === '0') { state.labels = false; document.getElementById('labels').style.opacity = '0'; }
+  if (params.has('pose')) {
+    intro.active = false;
+    const pose = params.get('pose').split(',').map(Number);
+    if (pose.length === 5 && pose.every(n => Number.isFinite(n))) {
+      state.mode = 'manual';
+      state.angles = pose.map((v, i) => Math.max(JOINTS[i].min, Math.min(JOINTS[i].max, v)) * RAD);
+      state.targets = [...state.angles];
+      state.caption = 'Manual joint control';
+      ui.setMode('manual');
+      applyAngles();
+      ui.setActiveJoint(-1);
+      resetTrail();
+      updateCaption();
+    }
+  }
+  if (params.has('t')) {
+    intro.active = false;
+    const t = parseFloat(params.get('t')) || 0;
+    const mode = params.get('mode') || 'showcase';
+    setMode(mode);
+    if (state.runner) {
+      state.runnerTime = t;
+      const sample = state.runner.sample(t, state.angles);
+      state.angles = [...sample.pose];
+      state.targets = [...sample.pose];
+      state.caption = sample.caption;
+      state.activeJoint = sample.activeJoint;
+      applyAngles();
+      ui.setActiveJoint(state.activeJoint);
+      updateCaption();
+    }
+    state.paused = true;
+    ui.setPaused(true);
+    resetTrail();
+    // lay down a static trail preview along the current pose
+  }
+  if (params.has('cam')) {
+    intro.active = false;
+    flyTo(params.get('cam'), true);
+  }
+  if (SHOT) {
+    intro.active = false;
+    const fader = document.getElementById('fader');
+    if (fader) fader.remove();
+    if (!params.has('cam')) flyTo('iso', true);
+  }
+  if (params.has('introT')) {
+    const fader = document.getElementById('fader');
+    if (fader) fader.remove();
+    intro.active = true;
+    autoLoop = false;
+    intro.t = Math.max(0, Math.min(0.999, parseFloat(params.get('introT')) || 0));
+    updateIntro(0);
+    renderer.render(scene, camera);
+  }
+}
+
+// debug / screenshot API
+window.__armReady = false;
+window.__arm = {
+  scene, camera, renderer, controls, state, ui, arm: null,
+  setMode, applyAngles, flyTo,
+  setAuto(v) { autoLoop = !!v; },
+  step(dt = 1 / 60, count = 1) {
+    for (let i = 0; i < count; i++) tick(dt);
+    renderer.render(scene, camera);
+  },
+  setAngles(degArray) {
+    enterManual();
+    state.angles = degArray.map((v, i) => Math.max(JOINTS[i].min, Math.min(JOINTS[i].max, v)) * RAD);
+    state.targets = [...state.angles];
+    applyAngles();
+    ui.update(state);
+  }
+};
+
+// ------------------------------------------------------------------- start
+applyParams();
+if (intro.active) {
+  controls.enabled = false;
+} else {
+  applyAngles();
+  controls.enabled = true;
+  if (!params.has('cam')) flyTo('iso', true);
+  controls.update();
+}
+if (state.mode === 'showcase' && !state.runner) setMode('showcase');
+ui.update(state);
+ui.setMode(state.mode);
+ui.setPaused(false);
+ui.setToggle('trail', state.trail);
+ui.setToggle('axes', state.axes);
+ui.setToggle('labels', state.labels);
+ui.setToggle('rotate', state.rotate);
+ui.setCaption(state.mode, state.caption);
+ui.setActiveJoint(-1);
+
+// load the real CAD arm, then start rendering
+const fader = document.getElementById('fader');
+loadArm().then(real => {
+  arm = real;
+  scene.add(arm.root);
+  arm.endEffector.add(eefDot);
+  buildAxisArrows();
+  // small wrist reference triad at the J5 output, shown with the joint axes
+  toolAxes = new THREE.Group();
+  toolAxes.position.set(0.0565, 0, 0);
+  const toolCols = [0xff7a1f, 0x63e6be, 0x6ea8ff];
+  const toolDirs = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
+  for (let i = 0; i < 3; i++) {
+    const a = new THREE.ArrowHelper(toolDirs[i], new THREE.Vector3(0, 0, 0), 0.032, toolCols[i], 0.008, 0.005);
+    a.traverse(o => { if (o.material) { o.material.transparent = true; o.material.opacity = 0.95; o.material.depthWrite = false; } });
+    toolAxes.add(a);
+  }
+  toolAxes.visible = state.axes;
+  arm.joints[4].add(toolAxes);
+  applyAngles();
+  ui.update(state);
+  updateLabels();
+  window.__arm.arm = arm;
+  window.__armReady = true;
+  if (intro.active) {
+    controls.enabled = false;
+  } else {
+    controls.enabled = true;
+    if (!params.has('cam')) flyTo('iso', true);
+    controls.update();
+  }
+  if (fader && !SHOT) setTimeout(() => fader.classList.add('gone'), 100);
+  frame();
+}).catch(err => {
+  console.error(err);
+  if (fader) fader.remove();
+  const d = document.createElement('div');
+  d.textContent = 'Could not load the CAD model: ' + (err && err.message ? err.message : err);
+  d.style.cssText = 'position:fixed;left:20px;bottom:20px;z-index:99;background:#9b1c1c;color:#fff;font:13px ui-monospace,monospace;padding:10px 14px;border-radius:8px';
+  document.body.appendChild(d);
+});

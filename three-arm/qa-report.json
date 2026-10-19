@@ -1,0 +1,146 @@
+{
+  "report": [
+    {
+      "label": "app booted",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "CAD model loaded",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "GLB hierarchy present",
+      "ok": true,
+      "detail": "{\"name\":\"EPQ_ARM_FLOATING\",\"joints\":5,\"meshes\":27}"
+    },
+    {
+      "label": "CAD meshes present",
+      "ok": true,
+      "detail": "meshes=27"
+    },
+    {
+      "label": "intro camera dolly running",
+      "ok": true,
+      "detail": "{\"active\":\"showcase\",\"camZ\":2.09}"
+    },
+    {
+      "label": "WebGL canvas present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "five joint controls built",
+      "ok": true,
+      "detail": "5"
+    },
+    {
+      "label": "five joint labels built",
+      "ok": true,
+      "detail": "5"
+    },
+    {
+      "label": "no in-page JS error banner",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "showcase running after intro",
+      "ok": true,
+      "detail": "\"showcase\""
+    },
+    {
+      "label": "arm is animating",
+      "ok": true,
+      "detail": "[0,22,0,38,0]"
+    },
+    {
+      "label": "end-effector motion trail accumulating",
+      "ok": true,
+      "detail": "points=85"
+    },
+    {
+      "label": "draw calls reasonable",
+      "ok": true,
+      "detail": "{\"calls\":20,\"tris\":290541}"
+    },
+    {
+      "label": "triangle count reasonable",
+      "ok": true,
+      "detail": "{\"calls\":20,\"tris\":290541}"
+    },
+    {
+      "label": "pause toggles",
+      "ok": true,
+      "detail": "Paused — Automatic motion sequence"
+    },
+    {
+      "label": "range mode engages",
+      "ok": true,
+      "detail": "{\"mode\":\"range\",\"active\":0,\"cap\":\"J1 · Base yaw — centred\",\"note\":\"Auto · loops\"}"
+    },
+    {
+      "label": "range test highlights a joint",
+      "ok": true,
+      "detail": "active=0"
+    },
+    {
+      "label": "range caption updates",
+      "ok": true,
+      "detail": "J1 · Base yaw — centred"
+    },
+    {
+      "label": "range sweep moves joints",
+      "ok": true,
+      "detail": "{\"angles\":[0,103.7,0,0,0],\"active\":1,\"cap\":\"J2 · Shoulder pitch — 150°\"}"
+    },
+    {
+      "label": "slider switches to manual",
+      "ok": true,
+      "detail": "{\"mode\":\"manual\",\"j3\":95,\"target\":95}"
+    },
+    {
+      "label": "slider drives J3",
+      "ok": true,
+      "detail": "{\"mode\":\"manual\",\"j3\":95,\"target\":95}"
+    },
+    {
+      "label": "joint axes toggle",
+      "ok": true,
+      "detail": "true"
+    },
+    {
+      "label": "labels toggle hides labels",
+      "ok": true,
+      "detail": "opacity=0"
+    },
+    {
+      "label": "home returns to home pose + manual",
+      "ok": true,
+      "detail": "{\"mode\":\"manual\",\"angles\":[0,0,0,0,0],\"active\":-1}"
+    },
+    {
+      "label": "profile camera preset",
+      "ok": true,
+      "detail": "{\"x\":1.7,\"y\":0.58,\"z\":0}"
+    },
+    {
+      "label": "hide UI",
+      "ok": true,
+      "detail": "{\"cls\":\"ui-hidden\"}"
+    },
+    {
+      "label": "renderer resizes",
+      "ok": true,
+      "detail": "{\"w\":1280,\"h\":720}"
+    },
+    {
+      "label": "no runtime errors",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "errors": [],
+  "consoleLines": []
+}
