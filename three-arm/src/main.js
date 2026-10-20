@@ -15,6 +15,7 @@ const SHOT = params.has('shot');
 const NO_UI = params.get('ui') === '0';
 const MOBILE_MQ = window.matchMedia('(max-width: 760px), (max-height: 560px)');
 const isMobileLayout = () => MOBILE_MQ.matches;
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const stage = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -85,59 +86,6 @@ const frontFill = new THREE.DirectionalLight(0xFFFFFF, 0.9);
 frontFill.position.set(-0.4, 0.35, 2.0);
 scene.add(frontFill);
 
-// ------------------------------------------------------------------- floor
-function buildFloor() {
-  const group = new THREE.Group();
-  const c = document.createElement('canvas');
-  c.width = c.height = 512;
-  const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, 512, 512);
-  const grd = ctx.createRadialGradient(256, 256, 10, 256, 256, 256);
-  grd.addColorStop(0, 'rgba(44,56,72,0.98)');
-  grd.addColorStop(0.34, 'rgba(23,30,41,0.96)');
-  grd.addColorStop(0.62, 'rgba(13,17,24,0.82)');
-  grd.addColorStop(0.86, 'rgba(7,9,13,0.38)');
-  grd.addColorStop(1, 'rgba(5,7,10,0)');
-  ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, 512, 512);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(3.1, 160),
-    new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.9, metalness: 0.05, depthWrite: true })
-  );
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  group.add(floor);
-
-  // faint technical rings
-  const ringMat = new THREE.LineBasicMaterial({ color: 0x4b6078, transparent: true, opacity: 0.34, depthWrite: false });
-  const ringMat2 = new THREE.LineBasicMaterial({ color: 0x4b6078, transparent: true, opacity: 0.17, depthWrite: false });
-  for (const [r, mat] of [[0.30, ringMat], [0.60, ringMat], [0.95, ringMat2], [1.35, ringMat2], [1.85, ringMat2], [2.45, ringMat2]]) {
-    const pts = [];
-    for (let i = 0; i <= 256; i++) {
-      const a = (i / 256) * Math.PI * 2;
-      pts.push(new THREE.Vector3(Math.cos(a) * r, 0.004, Math.sin(a) * r));
-    }
-    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
-  }
-  // radial tick marks
-  const tickMat = new THREE.LineBasicMaterial({ color: 0x4b6078, transparent: true, opacity: 0.12, depthWrite: false });
-  for (let i = 0; i < 36; i++) {
-    const a = (i / 36) * Math.PI * 2;
-    const r0 = i % 3 === 0 ? 0.30 : 0.585;
-    const r1 = i % 3 === 0 ? 0.36 : 0.62;
-    const pts = [
-      new THREE.Vector3(Math.cos(a) * r0, 0.004, Math.sin(a) * r0),
-      new THREE.Vector3(Math.cos(a) * r1, 0.004, Math.sin(a) * r1)
-    ];
-    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), tickMat));
-  }
-  scene.add(group);
-  return group;
-}
-
 // --------------------------------------------------------------------- arm
 // Placeholder arm so the UI / motion logic can be built before the CAD model
 // finishes loading; it is replaced by the real GLB arm in boot().
@@ -164,6 +112,7 @@ const state = {
   targets: homePose(),
   runner: null,
   runnerTime: 0,
+  blend: null,
   speed: 1,
   paused: false,
   activeJoint: -1,
@@ -173,6 +122,8 @@ const state = {
   labels: true,
   rotate: false
 };
+// joint driven by the arrow keys (1–5, a slider or a click on its row)
+const keyNudge = { selected: 0 };
 
 function buildAxisArrows() {
   for (const a of axisArrows) {
@@ -209,10 +160,11 @@ const ui = createUI({
   onSlider: (i, deg) => {
     enterManual();
     state.targets[i] = Math.max(JOINTS[i].min, Math.min(JOINTS[i].max, deg)) * RAD;
-    state.caption = 'Manual joint control';
+    selectJoint(i);
+    state.caption = `Manual joint control · ${JOINTS[i].key}`;
     updateCaption();
   },
-  onSelect: () => {},
+  onSelect: i => selectJoint(i),
   onToggle: name => toggleSetting(name),
   onView: name => flyTo(name),
   onResetView: () => flyTo('iso'),
@@ -260,12 +212,15 @@ function setMode(mode) {
   ui.setPaused(false);
   ui.setMode(mode);
   resetTrail();
+  state.blend = null;
   if (mode === 'showcase') {
     state.runner = createShowcase();
     state.runnerTime = 0;
+    startBlend();
   } else if (mode === 'range') {
     state.runner = createRangeTest();
     state.runnerTime = 0;
+    startBlend();
   } else if (mode === 'home') {
     state.runner = createHomeMove([...state.angles]);
     state.runnerTime = 0;
@@ -286,10 +241,33 @@ function setMode(mode) {
   ui.setActiveJoint(state.activeJoint);
 }
 
+// A demo's first frame can be far from the current pose (e.g. after posing by
+// hand); ease across instead of letting the arm snap there.
+function startBlend() {
+  const first = state.runner.sample(0, state.angles).pose;
+  const maxDeg = Math.max(...first.map((a, i) => Math.abs(a - state.angles[i]))) * DEG;
+  state.blend = maxDeg > 0.5 ? { from: [...state.angles], t: 0, dur: Math.min(1.6, 0.4 + maxDeg / 150) } : null;
+}
+
+function blendIn(pose, dt) {
+  const b = state.blend;
+  if (!b) return pose;
+  b.t += dt / b.dur;
+  if (b.t >= 1) { state.blend = null; return pose; }
+  const k = easeInOut(b.t);
+  return pose.map((a, i) => b.from[i] + (a - b.from[i]) * k);
+}
+
+function selectJoint(i) {
+  keyNudge.selected = i;
+  if (state.mode === 'manual') state.activeJoint = i;
+}
+
 function enterManual() {
   if (state.mode === 'manual') return;
   state.mode = 'manual';
   state.runner = null;
+  state.blend = null;
   state.paused = false;
   ui.setPaused(false);
   state.targets = [...state.angles];
@@ -386,7 +364,6 @@ function sampleTrail() {
 }
 
 // ------------------------------------------------------------------ labels
-const labelsEl = document.getElementById('labels');
 const labelOffsets = [
   [-86, 0], [-86, -30], [52, -10], [72, 8], [72, 28]
 ];
@@ -394,20 +371,28 @@ function updateLabels() {
   if (!state.labels) return;
   const w = renderer.domElement.clientWidth;
   const h = renderer.domElement.clientHeight;
+  // pull the pills in on phones so they stay close to their joints
+  const spread = isMobileLayout() ? 0.62 : 1;
   const v = tmpVec;
   for (let i = 0; i < arm.joints.length; i++) {
     arm.joints[i].getWorldPosition(v);
     v.project(camera);
     const x = (v.x * 0.5 + 0.5) * w;
     const y = (-v.y * 0.5 + 0.5) * h;
-    const el = ui.labels[i].el;
+    const { el, leader, line, anchor } = ui.labels[i];
     const visible = v.z < 1 && x > -80 && x < w + 80 && y > -60 && y < h + 60;
-    el.style.opacity = visible ? '1' : '0';
+    el.style.opacity = leader.style.opacity = visible ? '1' : '0';
     if (!visible) continue;
-    const [dx, dy] = labelOffsets[i];
-    el.style.left = x.toFixed(1) + 'px';
-    el.style.top = y.toFixed(1) + 'px';
-    el.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    const lx = x + labelOffsets[i][0] * spread;
+    const ly = y + labelOffsets[i][1] * spread;
+    el.style.left = lx.toFixed(1) + 'px';
+    el.style.top = ly.toFixed(1) + 'px';
+    line.setAttribute('x1', x.toFixed(1));
+    line.setAttribute('y1', y.toFixed(1));
+    line.setAttribute('x2', lx.toFixed(1));
+    line.setAttribute('y2', ly.toFixed(1));
+    anchor.setAttribute('cx', x.toFixed(1));
+    anchor.setAttribute('cy', y.toFixed(1));
     ui.labels[i].angleEl.textContent = `${Math.round(state.angles[i] * DEG)}°`;
   }
 }
@@ -458,7 +443,7 @@ function flyTo(name, instant = false) {
 
 // ------------------------------------------------------------------- intro
 const intro = {
-  active: !SHOT && !params.has('pose') && !params.has('t'),
+  active: !SHOT && !REDUCED_MOTION && !params.has('pose') && !params.has('t'),
   t: 0,
   dur: 2.6,
   fromCam: new THREE.Vector3(2.05, 1.28, 2.15),
@@ -510,7 +495,7 @@ function updateMotion(dt) {
   if (state.mode !== 'manual' && state.runner && !state.paused) {
     state.runnerTime += dt * state.speed;
     const sample = state.runner.sample(state.runnerTime, state.angles);
-    state.targets = sample.pose;
+    state.targets = blendIn(sample.pose, dt * state.speed);
     state.caption = sample.caption;
     if (state.activeJoint !== sample.activeJoint) {
       state.activeJoint = sample.activeJoint;
@@ -601,9 +586,11 @@ window.addEventListener('resize', resizeRenderer);
 if (window.ResizeObserver) new ResizeObserver(resizeRenderer).observe(stage);
 
 // ---------------------------------------------------------------- keyboard
-const keyNudge = { selected: 0 };
 window.addEventListener('keydown', e => {
-  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  const t = e.target;
+  // a focused slider keeps its own arrow keys, but the other shortcuts still work
+  const onSlider = t && t.tagName === 'INPUT' && t.type === 'range';
+  if (t && (t.tagName === 'TEXTAREA' || t.isContentEditable || (t.tagName === 'INPUT' && !onSlider))) return;
   const k = e.key;
   if (k === ' ') {
     e.preventDefault();
@@ -620,12 +607,14 @@ window.addEventListener('keydown', e => {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen().catch(() => {});
   } else if (k >= '1' && k <= '5') {
-    keyNudge.selected = parseInt(k, 10) - 1;
+    selectJoint(parseInt(k, 10) - 1);
   } else if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown') {
+    if (onSlider) return;
     const i = keyNudge.selected;
     const dir = (k === 'ArrowRight' || k === 'ArrowUp') ? 1 : -1;
     const stepDeg = e.shiftKey ? 5 : 1;
     enterManual();
+    selectJoint(i);
     const current = state.targets[i] * DEG + dir * stepDeg;
     state.targets[i] = Math.max(JOINTS[i].min, Math.min(JOINTS[i].max, current)) * RAD;
     state.caption = `Manual joint control · ${JOINTS[i].key}`;
@@ -660,6 +649,7 @@ function applyParams() {
     const t = parseFloat(params.get('t')) || 0;
     const mode = params.get('mode') || 'showcase';
     setMode(mode);
+    state.blend = null;
     if (state.runner) {
       state.runnerTime = t;
       const sample = state.runner.sample(t, state.angles);
@@ -727,14 +717,16 @@ if (intro.active) {
   controls.update();
 }
 if (state.mode === 'showcase' && !state.runner) setMode('showcase');
+// with reduced motion: no camera fly-in, and the demo waits for Space / play
+if (REDUCED_MOTION && state.mode === 'showcase' && !params.has('t')) state.paused = true;
 ui.update(state);
 ui.setMode(state.mode);
-ui.setPaused(false);
+ui.setPaused(state.paused);
 ui.setToggle('trail', state.trail);
 ui.setToggle('axes', state.axes);
 ui.setToggle('labels', state.labels);
 ui.setToggle('rotate', state.rotate);
-ui.setCaption(state.mode, state.caption);
+updateCaption();
 ui.setActiveJoint(-1);
 
 // load the real CAD arm, then start rendering

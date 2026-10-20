@@ -81,9 +81,7 @@ export function createShowcase() {
       const k = easeInOut(clamp(local / seg.dur, 0, 1));
       const pose = seg.from.map((a, i) => lerp(a, seg.to[i], k));
       return { pose, activeJoint: -1, caption: 'Automatic motion sequence' };
-    },
-    // used when entering the mode mid-cycle: start from current pose
-    startTime: 0
+    }
   };
 }
 
@@ -93,6 +91,9 @@ export function createRangeTest() {
   const add = (pose, dur, caption, activeJoint) =>
     steps.push({ pose: pose.map(v => v * RAD), dur, caption, activeJoint });
 
+  // sweep time grows with the angle travelled
+  const sweep = (from, to) => 0.5 + Math.abs(to - from) / 170;
+
   // start from home pose
   add(JOINTS.map(j => j.home), 0.9, 'Moving to the home pose', -1);
 
@@ -100,19 +101,19 @@ export function createRangeTest() {
   for (const idx of order) {
     const j = JOINTS[idx];
     const home = [...JOINTS.map(x => x.home)];
-    const toMin = [...home]; toMin[idx] = j.min;
-    const toMax = [...home]; toMax[idx] = j.max;
-    // sweep towards the nearest limit first
-    const first = Math.abs(j.home - j.min) < Math.abs(j.max - j.home) ? j.min : j.max;
-    const second = first === j.min ? j.max : j.min;
-    add([...home], 0.5, `${j.key} · ${j.name} — centred`, idx);
-    const p1 = [...home]; p1[idx] = first;
-    add(p1, 1.3, `${j.key} · ${j.name} — ${first.toFixed(0)}°`, idx);
-    add(p1, 0.55, `${j.key} · ${j.name} — ${first.toFixed(0)}°`, idx);
-    const p2 = [...home]; p2[idx] = second;
-    add(p2, 1.9, `${j.key} · ${j.name} — ${second.toFixed(0)}°`, idx);
-    add(p2, 0.55, `${j.key} · ${j.name} — ${second.toFixed(0)}°`, idx);
-    add([...home], 1.2, `${j.key} · ${j.name} — back to centre`, idx);
+    // visit each limit, nearest first; J2/J4 start at a limit, so they only have one
+    const ends = [j.max, j.min]
+      .filter(v => v !== j.home)
+      .sort((a, b) => Math.abs(a - j.home) - Math.abs(b - j.home));
+    add([...home], 0.5, `${j.key} · ${j.name} — home`, idx);
+    let at = j.home;
+    for (const end of ends) {
+      const p = [...home]; p[idx] = end;
+      add(p, sweep(at, end), `${j.key} · ${j.name} — ${end.toFixed(0)}°`, idx);
+      add(p, 0.55, `${j.key} · ${j.name} — ${end.toFixed(0)}°`, idx);
+      at = end;
+    }
+    add([...home], sweep(at, j.home), `${j.key} · ${j.name} — back to home`, idx);
   }
   add(JOINTS.map(j => j.home), 0.8, 'Range test complete', -1);
 

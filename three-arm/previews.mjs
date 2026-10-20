@@ -5,10 +5,10 @@ import path from 'node:path';
 import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT = 9000 + Math.floor(Math.random() * 800);
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
-const OUT = path.resolve(ROOT, '..', 'previews');
+const OUT = process.env.OUT || path.resolve(ROOT, '..', 'previews');
 const PROFILE = path.join(os.tmpdir(), `epq-arm-preview-${Date.now()}`);
 const URL_ = pathToFileURL(path.resolve(ROOT, '..', 'index.html')).href;
 fs.mkdirSync(OUT, { recursive: true });
@@ -81,7 +81,7 @@ await sleep(500);
 
 // range test still (running, not paused)
 await evaluate('document.querySelector("[data-mode=range]").click()');
-await step(11.0);
+await step(9.0);                       // J2 holding at its 150° limit
 await shot('EPQ-Arm-range');
 
 // manual pose showing the wrist roll

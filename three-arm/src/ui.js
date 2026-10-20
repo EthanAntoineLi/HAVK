@@ -13,6 +13,13 @@ const MODE_NOTE = {
   manual: 'Drag to pose',
   home: 'Moving home'
 };
+// the ❚❚ glyph renders as a solid block at this size, so draw the icons
+const ICON_PAUSE = '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect x="1.5" y="1" width="2.4" height="8" rx=".6"/><rect x="6.1" y="1" width="2.4" height="8" rx=".6"/></svg>';
+const ICON_PLAY = '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M2.4 1.2v7.6a.5.5 0 0 0 .76.43l6.2-3.8a.5.5 0 0 0 0-.86l-6.2-3.8a.5.5 0 0 0-.76.43z"/></svg>';
+
+// keep a range input's filled track in step with its thumb
+const paintFill = (input, v, min, max) =>
+  input.style.setProperty('--fill', (((v - min) / (max - min)) * 100).toFixed(2) + '%');
 
 export function createUI(handlers) {
   const modeButtons = [...document.querySelectorAll('#modes .mode')];
@@ -52,15 +59,13 @@ export function createUI(handlers) {
     const input = el.querySelector('input');
     const angleEl = el.querySelector('.jangle');
     let dragging = false;
-    const paint = v => {
-      const pct = ((v - j.min) / (j.max - j.min)) * 100;
-      input.style.setProperty('--fill', pct.toFixed(2) + '%');
-    };
+    const paint = v => paintFill(input, v, j.min, j.max);
     paint(j.home);
     input.addEventListener('pointerdown', () => {
       dragging = true;
       handlers.onSliderStart(idx);
     });
+    input.addEventListener('focus', () => handlers.onSelect(idx));
     input.addEventListener('input', () => {
       const v = parseFloat(input.value);
       paint(v);
@@ -81,9 +86,12 @@ export function createUI(handlers) {
     b.addEventListener('click', () => handlers.onMode(b.dataset.mode));
   }
   pauseBtn.addEventListener('click', () => handlers.onPause());
+  const paintSpeed = () => paintFill(speedEl, parseFloat(speedEl.value), parseFloat(speedEl.min), parseFloat(speedEl.max));
+  paintSpeed();
   speedEl.addEventListener('input', () => {
     const v = parseFloat(speedEl.value);
     speedVal.textContent = v.toFixed(1) + '×';
+    paintSpeed();
     handlers.onSpeed(v);
   });
   for (const [key, el] of Object.entries(chips)) {
@@ -100,21 +108,25 @@ export function createUI(handlers) {
   showBtn.addEventListener('click', () => handlers.onHideUI());
 
   // ---------------------------------------------------------------- labels
+  // each pill hangs off a leader line drawn from a small anchor on its joint
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const leaderSvg = document.createElementNS(SVG_NS, 'svg');
+  leaderSvg.id = 'leaders';
+  leaderSvg.setAttribute('aria-hidden', 'true');
+  labelHost.appendChild(leaderSvg);
   const labels = JOINTS.map((j, idx) => {
+    const line = document.createElementNS(SVG_NS, 'line');
+    const anchor = document.createElementNS(SVG_NS, 'circle');
+    anchor.setAttribute('r', '2.6');
+    const g = document.createElementNS(SVG_NS, 'g');
+    g.append(line, anchor);
+    leaderSvg.appendChild(g);
     const el = document.createElement('div');
     el.className = 'lbl';
     el.innerHTML = `<span class="dot"></span><b>${j.key}</b><span>0°</span>`;
     labelHost.appendChild(el);
-    return { el, angleEl: el.querySelector('span:last-child') };
+    return { el, angleEl: el.querySelector('span:last-child'), leader: g, line, anchor };
   });
-
-  const labelOffsets = [
-    [-34, 16],   // J1
-    [-26, -24],  // J2
-    [6, -24],    // J3
-    [30, -18],   // J4
-    [34, -14]    // J5
-  ];
 
   let lastCaption = '';
   let lastCapMode = '';
@@ -122,19 +134,25 @@ export function createUI(handlers) {
   return {
     rows,
     labels,
-    labelOffsets,
 
     setMode(mode) {
-      for (const b of modeButtons) b.classList.toggle('active', b.dataset.mode === mode);
+      for (const b of modeButtons) {
+        const on = b.dataset.mode === mode;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-pressed', String(on));
+      }
       noteEl.textContent = MODE_NOTE[mode] || '';
     },
     setPaused(paused) {
-      pauseBtn.textContent = paused ? '▶' : '❚❚';
+      pauseBtn.innerHTML = paused ? ICON_PLAY : ICON_PAUSE;
       pauseBtn.classList.toggle('paused', paused);
       pauseBtn.title = paused ? 'Resume (Space)' : 'Pause (Space)';
+      pauseBtn.setAttribute('aria-label', paused ? 'Resume' : 'Pause');
     },
     setToggle(name, on) {
-      if (chips[name]) chips[name].classList.toggle('on', on);
+      if (!chips[name]) return;
+      chips[name].classList.toggle('on', on);
+      chips[name].setAttribute('aria-pressed', String(on));
     },
     setView(name) {
       for (const b of viewButtons) {
@@ -144,7 +162,10 @@ export function createUI(handlers) {
     },
     setActiveJoint(idx) {
       rows.forEach((r, i) => r.el.classList.toggle('active', i === idx));
-      labels.forEach((l, i) => l.el.classList.toggle('active', i === idx));
+      labels.forEach((l, i) => {
+        l.el.classList.toggle('active', i === idx);
+        l.leader.classList.toggle('active', i === idx);
+      });
     },
     setCaption(mode, text) {
       const label = MODE_LABEL[mode] || 'DEMO';

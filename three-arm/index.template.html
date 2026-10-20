@@ -69,8 +69,13 @@
   .mode:hover, .pause:hover{background:rgba(11,27,47,.07);color:var(--text)}
   .mode.active{background:var(--accent);border-color:var(--accent);color:#FFFFFF;
     box-shadow:0 4px 18px rgba(194,65,12,.24)}
-  .pause{padding:7px 0;font-size:9px;letter-spacing:0}
+  .pause{padding:7px 0;font-size:9px;letter-spacing:0;display:flex;align-items:center;justify-content:center}
+  .pause svg{display:block;fill:currentColor}
   .pause.paused{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent)}
+  .mode:focus-visible, .pause:focus-visible, .chip:focus-visible, #viewbar button:focus-visible,
+  #hide-ui:focus-visible, #show-ui:focus-visible, #panel-toggle:focus-visible, #panel-close:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px}
+  input[type=range]:focus-visible{outline:2px solid var(--accent-line);outline-offset:3px;border-radius:4px}
 
   .section{padding-top:11px;margin-top:11px;border-top:1px solid var(--line)}
   .sec-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px}
@@ -115,6 +120,11 @@
 
   /* --------------------------------------------------------------- labels */
   #labels{position:fixed;inset:0;z-index:4;pointer-events:none;overflow:hidden;transition:opacity .3s}
+  #leaders{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+  #leaders g{transition:opacity .25s}
+  #leaders line{stroke:rgba(11,27,47,.30);stroke-width:1}
+  #leaders circle{fill:var(--accent);stroke:#FFFFFF;stroke-width:1.2}
+  #leaders g.active line{stroke:var(--accent);stroke-width:1.25}
   .lbl{position:absolute;top:0;left:0;transform:translate(-50%,-50%);
     display:flex;align-items:center;gap:6px;padding:3px 8px 3px 6px;border-radius:999px;
     background:rgba(255,255,255,.90);border:1px solid rgba(11,27,47,.14);
@@ -277,7 +287,7 @@
     <button class="mode" data-mode="range" title="Sweep each joint through its full range">Range</button>
     <button class="mode" data-mode="manual" title="Control every joint yourself">Manual</button>
     <button class="mode" data-mode="home" title="Return to the home pose">Home</button>
-    <button class="pause" id="pause" title="Pause / resume (Space)">❚❚</button>
+    <button class="pause" id="pause" title="Pause / resume (Space)" aria-label="Pause"></button>
   </div>
   <div class="section">
     <div class="sec-head"><span>Joint control</span><em id="mode-note">Auto demo</em></div>

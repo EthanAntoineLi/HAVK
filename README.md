@@ -27,9 +27,13 @@ all embedded), so it runs offline with no server and no external requests. Open
 - Camera presets (**Iso / Profile / Front / Top**), mouse orbit and scroll zoom.
 - Toggles for **motion trail**, **joint axes**, **labels** and auto-orbit; adjustable
   playback speed; pause, hide-UI and full-screen.
+- Switching into Showcase or Range eases over from whatever pose the arm is in.
+- With **reduced motion** turned on in the OS, the camera fly-in is skipped and the
+  showcase waits, paused, for **Space** or ▶.
 
 Keyboard: **Space** pause · **H** hide interface · **F** full screen · **R** reset
-camera · **1–5** select a joint for arrow-key nudging.
+camera · **1–5** select a joint for arrow-key nudging (the selected joint is
+highlighted in Manual mode).
 
 ## On a phone
 
@@ -93,6 +97,10 @@ node build.mjs      # writes ../index.html
 node qa.mjs         # optional, requires Google Chrome
 node previews.mjs   # optional, regenerates previews/
 ```
+
+`qa.mjs` and `previews.mjs` default to the macOS Chrome path. Set `CHROME` to use
+another Chrome or Chromium binary, and set `OUT` to send the previews somewhere
+other than `previews/`.
 
 To regenerate `model/arm-opt.glb` from the STEP file you need the OpenCASCADE
 Python bindings (`pip install cadquery-ocp`) plus the small optimiser toolchain in

@@ -8,7 +8,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT = 9000 + Math.floor(Math.random() * 800);
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
 const OUT = path.join(ROOT, 'shots');
@@ -148,6 +148,15 @@ check('end-effector motion trail accumulating', trailCount > 20, `points=${trail
 const perf = await evaluate('({calls: __arm.renderer.info.render.calls, tris: __arm.renderer.info.render.triangles})');
 check('draw calls reasonable', perf.calls < 400, JSON.stringify(perf));
 check('triangle count reasonable', perf.tris < 300000, JSON.stringify(perf));
+const chrome0 = await evaluate(`({
+  speedFill: parseFloat(getComputedStyle(document.getElementById('speed')).getPropertyValue('--fill')),
+  leaders: document.querySelectorAll('#leaders line').length,
+  pauseIcon: !!document.querySelector('#pause svg'),
+  pauseLabel: document.getElementById('pause').getAttribute('aria-label')
+})`);
+check('speed slider fill matches its value', Math.abs(chrome0.speedFill - 39.39) < 0.5, JSON.stringify(chrome0));
+check('labels have leader lines', chrome0.leaders === 5, JSON.stringify(chrome0));
+check('pause button draws an icon', chrome0.pauseIcon && chrome0.pauseLabel === 'Pause', JSON.stringify(chrome0));
 await screenshot('qa-01-showcase');
 
 // pause
@@ -164,9 +173,15 @@ state = await evaluate('({mode: __arm.state.mode, active: __arm.state.activeJoin
 check('range mode engages', state.mode === 'range', JSON.stringify(state));
 check('range test highlights a joint', state.active >= 0, `active=${state.active}`);
 check('range caption updates', /J\d/.test(state.cap), state.cap);
+const j2 = await evaluate(`(() => {
+  const r = __arm.state.runner; let t = 0;
+  while (t < r.duration && r.sample(t).activeJoint !== 1) t += 0.05;
+  return { start: +t.toFixed(2), deg: +(r.sample(t + 1.1).pose[1] * 180 / Math.PI).toFixed(1) };
+})()`);
+check('range test sweeps J2 without a dead leg', j2.deg > 20, JSON.stringify(j2));
 await screenshot('qa-02-range');
 
-await step(9.0);
+await step(7.4);
 state = await evaluate('({angles: __arm.state.angles.map(a => +(a*180/Math.PI).toFixed(1)), active: __arm.state.activeJoint, cap: document.getElementById("cap-text").textContent})');
 check('range sweep moves joints', state.angles.some(a => Math.abs(a) > 5), JSON.stringify(state));
 await screenshot('qa-03-range-sweep');
@@ -178,6 +193,28 @@ state = await evaluate('({mode: __arm.state.mode, j3: +(__arm.state.angles[2]*18
 check('slider switches to manual', state.mode === 'manual', JSON.stringify(state));
 check('slider drives J3', Math.abs(state.j3 - 95) < 3, JSON.stringify(state));
 await screenshot('qa-04-manual');
+
+// joint selection + shortcuts while a slider has focus
+const activeRow = () => evaluate('[...document.querySelectorAll("#joints .joint")].findIndex(r => r.classList.contains("active"))');
+await step(0.05);
+check('dragged joint is highlighted', await activeRow() === 2, String(await activeRow()));
+await evaluate('window.dispatchEvent(new KeyboardEvent("keydown", { key: "1" }))');
+await step(0.05);
+check('number key selects a joint', await activeRow() === 0, String(await activeRow()));
+await evaluate(`(() => { const s = document.querySelectorAll('#joints input[type=range]')[3]; s.focus(); s.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true })); })()`);
+const hiddenFromSlider = await evaluate('document.body.classList.contains("ui-hidden")');
+await evaluate(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true })); document.activeElement.blur();`);
+check('shortcuts work while a slider has focus', hiddenFromSlider, String(hiddenFromSlider));
+
+// entering a demo from a hand-set pose eases instead of snapping
+await evaluate('__arm.setAngles([100, 120, 0, 120, 0]); document.querySelector("[data-mode=showcase]").click()');
+await step(3 / 60);
+const blend = await evaluate('__arm.state.angles.map(a => +(a*180/Math.PI).toFixed(1))');
+const jump = Math.max(...blend.map((v, i) => Math.abs(v - [100, 120, 0, 120, 0][i])));
+check('showcase eases in from the current pose', jump < 5, `moved ${jump.toFixed(1)}° in 3 frames`);
+await step(2.0);
+const settled = await evaluate('({ blend: __arm.state.blend, mode: __arm.state.mode })');
+check('ease-in hands over to the showcase', settled.blend === null && settled.mode === 'showcase', JSON.stringify(settled));
 
 // toggles
 await evaluate('document.getElementById("t-axes").click(); document.getElementById("t-labels").click();');
@@ -267,6 +304,25 @@ await sleep(200);
 const mobileClosed = await evaluate('({ open: document.body.classList.contains("panel-open"), opacity: getComputedStyle(document.getElementById("panel")).opacity })');
 check('mobile controls close', !mobileClosed.open && parseFloat(mobileClosed.opacity) < 0.05, JSON.stringify(mobileClosed));
 await send('Emulation.clearDeviceMetricsOverride');
+
+// ------------------------------------------------------------ reduced motion
+await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+await send('Page.reload');
+await sleep(900);
+for (let i = 0; i < 80; i++) {
+  try { if (await evaluate('!!window.__armReady')) break; } catch {}
+  await sleep(250);
+}
+await evaluate('__arm.setAuto(false); __arm.step(1/60, 30);');
+const calm = await evaluate(`({
+  mode: __arm.state.mode, paused: __arm.state.paused,
+  angles: __arm.state.angles.map(a => +(a*180/Math.PI).toFixed(1)),
+  camZ: +__arm.camera.position.z.toFixed(2),
+  cap: document.getElementById('cap-text').textContent,
+  pause: document.getElementById('pause').getAttribute('aria-label')
+})`);
+check('reduced motion: no fly-in, demo waits paused', calm.mode === 'showcase' && calm.paused && calm.camZ < 1.3 && calm.angles.every(v => v === 0) && calm.pause === 'Resume' && calm.cap.startsWith('Paused'), JSON.stringify(calm));
+await send('Emulation.setEmulatedMedia', { features: [] });
 
 check('no runtime errors', errors.length === 0, errors.join(' | ').slice(0, 400));
 

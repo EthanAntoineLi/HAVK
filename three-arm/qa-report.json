@@ -71,6 +71,21 @@
       "detail": "{\"calls\":22,\"tris\":290541}"
     },
     {
+      "label": "speed slider fill matches its value",
+      "ok": true,
+      "detail": "{\"speedFill\":39.39,\"leaders\":5,\"pauseIcon\":true,\"pauseLabel\":\"Pause\"}"
+    },
+    {
+      "label": "labels have leader lines",
+      "ok": true,
+      "detail": "{\"speedFill\":39.39,\"leaders\":5,\"pauseIcon\":true,\"pauseLabel\":\"Pause\"}"
+    },
+    {
+      "label": "pause button draws an icon",
+      "ok": true,
+      "detail": "{\"speedFill\":39.39,\"leaders\":5,\"pauseIcon\":true,\"pauseLabel\":\"Pause\"}"
+    },
+    {
       "label": "pause toggles",
       "ok": true,
       "detail": "Paused — Automatic motion sequence"
@@ -78,7 +93,7 @@
     {
       "label": "range mode engages",
       "ok": true,
-      "detail": "{\"mode\":\"range\",\"active\":0,\"cap\":\"J1 · Base yaw — centred\",\"note\":\"Auto · loops\"}"
+      "detail": "{\"mode\":\"range\",\"active\":0,\"cap\":\"J1 · Base yaw — home\",\"note\":\"Auto · loops\"}"
     },
     {
       "label": "range test highlights a joint",
@@ -88,12 +103,17 @@
     {
       "label": "range caption updates",
       "ok": true,
-      "detail": "J1 · Base yaw — centred"
+      "detail": "J1 · Base yaw — home"
+    },
+    {
+      "label": "range test sweeps J2 without a dead leg",
+      "ok": true,
+      "detail": "{\"start\":6.85,\"deg\":55.8}"
     },
     {
       "label": "range sweep moves joints",
       "ok": true,
-      "detail": "{\"angles\":[0,103.7,0,0,0],\"active\":1,\"cap\":\"J2 · Shoulder pitch — 150°\"}"
+      "detail": "{\"angles\":[0,149.9,0,0,0],\"active\":1,\"cap\":\"J2 · Shoulder pitch — 150°\"}"
     },
     {
       "label": "slider switches to manual",
@@ -104,6 +124,31 @@
       "label": "slider drives J3",
       "ok": true,
       "detail": "{\"mode\":\"manual\",\"j3\":95,\"target\":95}"
+    },
+    {
+      "label": "dragged joint is highlighted",
+      "ok": true,
+      "detail": "2"
+    },
+    {
+      "label": "number key selects a joint",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "label": "shortcuts work while a slider has focus",
+      "ok": true,
+      "detail": "true"
+    },
+    {
+      "label": "showcase eases in from the current pose",
+      "ok": true,
+      "detail": "moved 0.0° in 3 frames"
+    },
+    {
+      "label": "ease-in hands over to the showcase",
+      "ok": true,
+      "detail": "{\"blend\":null,\"mode\":\"showcase\"}"
     },
     {
       "label": "joint axes toggle",
@@ -153,12 +198,12 @@
     {
       "label": "mobile controls sheet opens",
       "ok": true,
-      "detail": "{\"open\":true,\"opacity\":\"1\",\"expanded\":\"true\",\"canvasH\":444,\"viewportH\":844,\"labelsOpacity\":\"0\"}"
+      "detail": "{\"open\":true,\"opacity\":\"1\",\"expanded\":\"true\",\"canvasH\":442,\"viewportH\":844,\"labelsOpacity\":\"0\"}"
     },
     {
       "label": "mobile 3D view shrinks above the sheet",
       "ok": true,
-      "detail": "{\"open\":true,\"opacity\":\"1\",\"expanded\":\"true\",\"canvasH\":444,\"viewportH\":844,\"labelsOpacity\":\"0\"}"
+      "detail": "{\"open\":true,\"opacity\":\"1\",\"expanded\":\"true\",\"canvasH\":442,\"viewportH\":844,\"labelsOpacity\":\"0\"}"
     },
     {
       "label": "mobile labels hidden while posing",
@@ -169,6 +214,11 @@
       "label": "mobile controls close",
       "ok": true,
       "detail": "{\"open\":false,\"opacity\":\"0\"}"
+    },
+    {
+      "label": "reduced motion: no fly-in, demo waits paused",
+      "ok": true,
+      "detail": "{\"mode\":\"showcase\",\"paused\":true,\"angles\":[0,0,0,0,0],\"camZ\":1.12,\"cap\":\"Paused — Automatic motion sequence\",\"pause\":\"Resume\"}"
     },
     {
       "label": "no runtime errors",
